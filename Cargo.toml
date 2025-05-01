@@ -1,0 +1,13 @@
+[package]
+name = "rutd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.4.11", features = ["derive"] }
+serde = { version = "1.0.195", features = ["derive"] }
+toml = "0.8.8"
+git2 = "0.18.1"
+uuid = { version = "1.6.1", features = ["v4"] }
+chrono = "0.4.41"
+strum = { version = "0.27.1", features = ["derive"] }
