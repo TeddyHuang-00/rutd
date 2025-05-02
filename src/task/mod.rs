@@ -15,7 +15,7 @@ pub use model::{Priority, Task, TaskStatus};
 use uuid::Uuid;
 
 use crate::{
-    config::PathConfig,
+    config::{GitConfig, PathConfig},
     display::DisplayManager,
     git::{MergeStrategy, repo::GitRepo},
     task::active_task::ActiveTask,
@@ -25,13 +25,15 @@ use crate::{
 #[derive(Default)]
 pub struct TaskManager {
     path_config: PathConfig,
+    git_config: GitConfig,
 }
 
 impl TaskManager {
     /// Create a new Task Manager
-    pub fn new(tasks_dir: &str) -> Self {
+    pub fn new(path_config: PathConfig, git_config: GitConfig) -> Self {
         TaskManager {
-            path_config: PathConfig::new(tasks_dir),
+            path_config,
+            git_config,
         }
     }
 
@@ -51,7 +53,7 @@ impl TaskManager {
             scope,
             task_type,
         );
-        storage::save_task(self.path_config.tasks_dir(), &task)?;
+        storage::save_task(&self.path_config.task_dir(), &task)?;
         Ok(id)
     }
 
@@ -65,9 +67,8 @@ impl TaskManager {
         from_date: Option<&str>,
         to_date: Option<&str>,
         fuzzy_query: Option<&str>,
-        show_stats: bool,
     ) -> Result<Vec<Task>> {
-        let tasks = storage::load_all_tasks(self.path_config.tasks_dir())?;
+        let tasks = storage::load_all_tasks(&self.path_config.task_dir())?;
         let filtered_tasks = tasks
             .into_iter()
             .filter(|task| {
@@ -165,7 +166,7 @@ impl TaskManager {
 
     /// Mark a task as completed
     pub fn mark_task_done(&self, task_id: &str) -> Result<()> {
-        let mut task = storage::load_task(self.path_config.tasks_dir(), task_id)?;
+        let mut task = storage::load_task(&self.path_config.task_dir(), task_id)?;
 
         // Check if the task is already done
         if task.status == TaskStatus::Done {
@@ -173,7 +174,7 @@ impl TaskManager {
         }
 
         // Check if this is the active task
-        let is_active_task = match active_task::load_active_task(self.path_config.root_dir())? {
+        let is_active_task = match active_task::load_active_task(&self.path_config.root_dir())? {
             Some(active) => {
                 if active.task_id == task_id {
                     // Calculate time spent using the active task record
@@ -202,11 +203,11 @@ impl TaskManager {
         task.completed_at = Some(chrono::Utc::now().to_rfc3339());
 
         // Save the updated task
-        storage::save_task(self.path_config.tasks_dir(), &task)?;
+        storage::save_task(&self.path_config.task_dir(), &task)?;
 
         // If this was the active task, clear the active task record
         if is_active_task {
-            active_task::clear_active_task(self.path_config.root_dir())?;
+            active_task::clear_active_task(&self.path_config.root_dir())?;
             debug!(
                 "Completed active task: {} and cleared active task file",
                 task_id
@@ -221,9 +222,9 @@ impl TaskManager {
     /// Start working on a task
     pub fn start_task(&self, task_id: &str) -> Result<String> {
         // Check if there is already an active task
-        if let Some(active) = active_task::load_active_task(self.path_config.root_dir())? {
+        if let Some(active) = active_task::load_active_task(&self.path_config.root_dir())? {
             let active_task_obj =
-                storage::load_task(self.path_config.tasks_dir(), &active.task_id)?;
+                storage::load_task(&self.path_config.task_dir(), &active.task_id)?;
             return Err(anyhow!(
                 "There's already an active task: {} - {}. Stop it first.",
                 active.task_id,
@@ -232,7 +233,7 @@ impl TaskManager {
         }
 
         // Load task
-        let task = storage::load_task(self.path_config.tasks_dir(), task_id)?;
+        let task = storage::load_task(&self.path_config.task_dir(), task_id)?;
 
         // Check if task is already completed or aborted
         if task.status == TaskStatus::Done {
@@ -247,7 +248,7 @@ impl TaskManager {
 
         // Create and save active task record
         let active = ActiveTask::new(task.id.clone(), now);
-        active_task::save_active_task(self.path_config.root_dir(), &active)?;
+        active_task::save_active_task(&self.path_config.root_dir(), &active)?;
 
         debug!("Started task: {} and saved to active task file", task.id);
         Ok(task.id)
@@ -256,14 +257,14 @@ impl TaskManager {
     /// Stop working on a task
     pub fn stop_task(&self) -> Result<String> {
         // Check if there's an active task
-        let Some(active_task_info) = active_task::load_active_task(self.path_config.root_dir())?
+        let Some(active_task_info) = active_task::load_active_task(&self.path_config.root_dir())?
         else {
             // No active task found
             bail!("No active task found. Task might not be in progress.")
         };
 
         // Load the task
-        let mut task = storage::load_task(self.path_config.tasks_dir(), &active_task_info.task_id)?;
+        let mut task = storage::load_task(&self.path_config.task_dir(), &active_task_info.task_id)?;
 
         // Calculate time spent using the active task record
         let started_time = DateTime::parse_from_rfc3339(&active_task_info.started_at)
@@ -281,10 +282,10 @@ impl TaskManager {
         task.updated_at = Some(chrono::Utc::now().to_rfc3339());
 
         // Save the updated task
-        storage::save_task(self.path_config.tasks_dir(), &task)?;
+        storage::save_task(&self.path_config.task_dir(), &task)?;
 
         // Clear the active task record
-        active_task::clear_active_task(self.path_config.root_dir())?;
+        active_task::clear_active_task(&self.path_config.root_dir())?;
 
         debug!(
             "Stopped task: {} and cleared active task file",
@@ -299,14 +300,15 @@ impl TaskManager {
             Some(task_id) => task_id.to_owned(),
             None => {
                 // Load the active task if no ID is provided
-                let Some(active_task) = active_task::load_active_task(self.path_config.root_dir())?
+                let Some(active_task) =
+                    active_task::load_active_task(&self.path_config.root_dir())?
                 else {
                     bail!("No active task found");
                 };
                 active_task.task_id
             }
         };
-        let mut task = storage::load_task(self.path_config.tasks_dir(), &task_id)?;
+        let mut task = storage::load_task(&self.path_config.task_dir(), &task_id)?;
 
         // Check if the task is already done or aborted
         if task.status == TaskStatus::Done {
@@ -317,7 +319,7 @@ impl TaskManager {
         }
 
         // Check if this is the active task
-        let is_active_task = match active_task::load_active_task(self.path_config.root_dir())? {
+        let is_active_task = match active_task::load_active_task(&self.path_config.root_dir())? {
             Some(active) => {
                 if active.task_id == task_id {
                     // Calculate time spent using the active task record
@@ -346,11 +348,11 @@ impl TaskManager {
         task.completed_at = Some(chrono::Utc::now().to_rfc3339());
 
         // Save the updated task
-        storage::save_task(self.path_config.tasks_dir(), &task)?;
+        storage::save_task(&self.path_config.task_dir(), &task)?;
 
         // If this was the active task, clear the active task record
         if is_active_task {
-            active_task::clear_active_task(self.path_config.root_dir())?;
+            active_task::clear_active_task(&self.path_config.root_dir())?;
             debug!(
                 "Aborted active task: {} and cleared active task file",
                 task_id
@@ -365,7 +367,7 @@ impl TaskManager {
     /// Edit task description
     pub fn edit_task_description(&self, task_id: &str) -> Result<String> {
         // Load the task
-        let mut task = storage::load_task(self.path_config.tasks_dir(), task_id)?;
+        let mut task = storage::load_task(&self.path_config.task_dir(), task_id)?;
 
         // Create a temporary file for editing
         let mut temp_file = tempfile::NamedTempFile::new()?;
@@ -397,7 +399,7 @@ impl TaskManager {
             if new_description != task.description {
                 task.description = new_description;
                 task.updated_at = Some(chrono::Utc::now().to_rfc3339());
-                storage::save_task(self.path_config.tasks_dir(), &task)?;
+                storage::save_task(&self.path_config.task_dir(), &task)?;
             }
 
             Ok(task.id)
@@ -426,7 +428,6 @@ impl TaskManager {
             None,
             None,
             None,
-            false,
         )?;
 
         // Filter by age if specified
@@ -461,7 +462,7 @@ impl TaskManager {
 
         // Delete tasks
         for task in tasks {
-            storage::delete_task(self.path_config.tasks_dir(), &task.id)?;
+            storage::delete_task(&self.path_config.task_dir(), &task.id)?;
         }
 
         Ok(count)
@@ -469,14 +470,14 @@ impl TaskManager {
 
     /// Clone a remote repository
     pub fn clone_repo(&self, url: &str) -> Result<()> {
-        GitRepo::clone(self.path_config.tasks_dir(), url)?;
+        GitRepo::clone(self.path_config.task_dir(), url, &self.git_config)?;
         Ok(())
     }
 
     /// Sync with remote repository
     pub fn sync(&self, prefer: MergeStrategy) -> Result<()> {
-        let git_repo = GitRepo::init(self.path_config.tasks_dir())?;
-        git_repo.sync(prefer)?;
+        let git_repo = GitRepo::init(self.path_config.task_dir())?;
+        git_repo.sync(prefer, &self.git_config)?;
         Ok(())
     }
 }

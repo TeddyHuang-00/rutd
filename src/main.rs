@@ -4,15 +4,17 @@ mod display;
 mod git;
 mod task;
 
-use std::{env, process::ExitCode};
+use std::process::ExitCode;
 
 use clap::Parser;
 use cli::Cli;
-use config::PathConfig;
+use config::Config;
 use display::DisplayManager;
 use log::{LevelFilter, debug, trace};
 use simple_logger::SimpleLogger;
 use task::TaskManager;
+
+const APP_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn main() -> ExitCode {
     // Parse command line arguments
@@ -23,7 +25,7 @@ fn main() -> ExitCode {
     SimpleLogger::new()
         .with_level(LevelFilter::Info)
         .with_module_level(
-            env!("CARGO_PKG_NAME"),
+            APP_NAME,
             match cli.verbose {
                 0 => LevelFilter::Info,
                 1 => LevelFilter::Debug,
@@ -34,13 +36,27 @@ fn main() -> ExitCode {
         .init()
         .unwrap();
 
+    // Get configuration from environment variables
+    let Ok(config) =
+        Config::new().inspect_err(|e| log::error!("Failed to load configuration: {}", e))
+    else {
+        return ExitCode::FAILURE;
+    };
+    let path_config = config.path;
+    let git_config = config.git;
+
+    debug!("Root directory: {}", path_config.root_dir().display());
+    debug!("Tasks directory: {}", path_config.task_dir().display());
+    debug!(
+        "Active task file: {}",
+        path_config.active_task_file().display()
+    );
+
     // Create a display manager
     let display_manager = DisplayManager::default();
 
     // Build the task manager
-    let task_manager = env::var("RUTD_TASKS_DIR")
-        .map(|dir| TaskManager::new(&dir))
-        .unwrap_or_default();
+    let task_manager = TaskManager::new(path_config, git_config);
 
     trace!("Received cli args: {:?}", cli);
 
@@ -83,8 +99,8 @@ fn main() -> ExitCode {
             stats,
         } => {
             trace!("List tasks");
-            // TODO: Refactor filter options into dedicated struct, and implement function to log filter options
-            // if let Some(p) = priority {
+            // TODO: Refactor filter options into dedicated struct, and implement function
+            // to log filter options if let Some(p) = priority {
             //     display_manager.show_debug("Filter by priority: {}", p);
             // }
             // if let Some(s) = scope {
@@ -117,7 +133,6 @@ fn main() -> ExitCode {
                     from_date.as_deref(),
                     to_date.as_deref(),
                     fuzzy.as_deref(),
-                    *stats,
                 )
                 .inspect_err(|e| {
                     display_manager.show_failure(&format!("Fail to load tasks: {}", e));

@@ -7,7 +7,7 @@ use git2::{
 };
 use log::{debug, info};
 
-use crate::git::MergeStrategy;
+use crate::{config::GitConfig, git::MergeStrategy};
 
 pub struct GitRepo {
     repo: Repository,
@@ -19,6 +19,7 @@ impl GitRepo {
         let path = path.as_ref();
         // If the repository doesn't exist, create a new one
         let repo = Repository::open(path).or_else(|_| Repository::init(path))?;
+
         Ok(GitRepo { repo })
     }
 
@@ -26,12 +27,16 @@ impl GitRepo {
     ///
     /// - url: URL of the remote repository
     /// - branch: Branch to clone (default is "main" or "master")
-    pub fn clone<P: AsRef<Path>>(path: P, url: &str) -> Result<Self> {
+    pub fn clone<P: AsRef<Path>>(path: P, url: &str, git_config: &GitConfig) -> Result<Self> {
         let path = path.as_ref();
         info!("Cloning {} to {}", url, path.display());
 
+        let git_config = git_config.clone();
+
         let mut callbacks = RemoteCallbacks::new();
-        callbacks.credentials(credential);
+        callbacks.credentials(move |url, username, allowed_types| {
+            credential(url, username, allowed_types, &git_config)
+        });
 
         let mut fetch_options = FetchOptions::new();
         fetch_options.remote_callbacks(callbacks);
@@ -103,7 +108,7 @@ impl GitRepo {
     /// Sync with remote repository (fetch, pull, push)
     ///
     /// - prefer: Specifies the resolution strategy for merge conflicts
-    pub fn sync(&self, prefer: MergeStrategy) -> Result<()> {
+    pub fn sync(&self, prefer: MergeStrategy, git_config: &GitConfig) -> Result<()> {
         // Check if we have any remotes
         let remotes = self.repo.remotes()?;
         if remotes.is_empty() {
@@ -115,7 +120,10 @@ impl GitRepo {
 
         // Set up authentication callbacks
         let mut callbacks = RemoteCallbacks::new();
-        callbacks.credentials(credential);
+        let git_config_clone = git_config.clone();
+        callbacks.credentials(move |url, username, allowed_types| {
+            credential(url, username, allowed_types, &git_config_clone)
+        });
 
         // Fetch latest changes
         let mut fetch_options = FetchOptions::new();
@@ -269,7 +277,10 @@ impl GitRepo {
         // Push local changes
         debug!("Pushing to remote '{}'", remote_name);
         let mut callbacks = RemoteCallbacks::new();
-        callbacks.credentials(credential);
+        callbacks.credentials(move |url, username, allowed_types| {
+            credential(url, username, allowed_types, git_config)
+        });
+
         let mut push_options = PushOptions::new();
         push_options.remote_callbacks(callbacks);
 
@@ -335,6 +346,7 @@ fn credential(
     url: &str,
     username_from_url: Option<&str>,
     allowed_types: CredentialType,
+    git_config: &GitConfig,
 ) -> Result<Cred, git2::Error> {
     debug!("Attempting authentication for URL: {}", url);
     debug!("Allowed credential types: {:?}", allowed_types);
@@ -379,13 +391,16 @@ fn credential(
     // Try username/password if SSH doesn't work
     if allowed_types.contains(CredentialType::USER_PASS_PLAINTEXT) {
         debug!("Trying username/password authentication");
-        // Check for environment variables containing credentials
-        let username = env::var("RUTD_GIT_USERNAME")
-            .or_else(|_| env::var("GIT_USERNAME"))
-            .unwrap_or_else(|_| username_from_url.unwrap_or("git").to_string());
 
-        if let Ok(password) = env::var("RUTD_GIT_PASSWORD").or_else(|_| env::var("GIT_PASSWORD")) {
-            debug!("Using username/password from environment variables");
+        // Use the username from GitConfig or fallback to URL username or "git"
+        let username = git_config
+            .username
+            .clone()
+            .unwrap_or_else(|| username_from_url.unwrap_or("git").to_string());
+
+        // Check if we have a password in the GitConfig
+        if let Some(password) = git_config.password.clone() {
+            debug!("Using username/password from configuration");
             return Cred::userpass_plaintext(&username, &password);
         }
     }
