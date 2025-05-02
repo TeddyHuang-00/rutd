@@ -5,27 +5,19 @@ use std::{
 };
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use shellexpand::tilde;
-use uuid::Uuid;
 
 use crate::{git::repo::GitRepo, task::model::Task};
 
-const TASKS_DIR: &str = "~/.rutd";
-
 /// Save task to TOML file
-pub fn save_task(task: &Task) -> Result<()> {
-    // Expand the tilde in the tasks directory path
-    let tasks_dir = tilde(TASKS_DIR).to_string();
-
+pub fn save_task(root_dir: &PathBuf, task: &Task) -> Result<()> {
     // Make sure the tasks directory exists
-    fs::create_dir_all(&tasks_dir)?;
+    fs::create_dir_all(root_dir)?;
 
     // Initialize the Git repository
-    let git_repo = GitRepo::init(&tasks_dir)?;
+    let git_repo = GitRepo::init(root_dir)?;
 
     // Use the task's UUID as the filename
-    let file_path = PathBuf::from(&tasks_dir).join(format!("{}.toml", task.id));
+    let file_path = PathBuf::from(&root_dir).join(format!("{}.toml", task.id));
 
     // Serialize the task to TOML format
     let toml_string = toml::to_string(task)?;
@@ -49,16 +41,15 @@ pub fn save_task(task: &Task) -> Result<()> {
 /// Short IDs are supported, so if the task ID is "1234", it will match
 /// "1234.toml" and "1234-5678.toml", as long as it is enough to uniquely
 /// identify the file.
-pub fn locate_task(task_id: &str) -> Result<PathBuf> {
-    let tasks_dir = PathBuf::from(tilde(TASKS_DIR).to_string());
+pub fn locate_task(root_dir: &PathBuf, task_id: &str) -> Result<PathBuf> {
     // Make sure the directory exists
-    if !tasks_dir.exists() {
+    if !root_dir.exists() {
         anyhow::bail!("Tasks directory does not exist");
     }
     let mut matching_files = Vec::new();
 
     // Iterate over all TOML files in the directory
-    for entry in fs::read_dir(tasks_dir)? {
+    for entry in fs::read_dir(root_dir)? {
         let path = entry?.path();
 
         if path.is_file()
@@ -80,8 +71,8 @@ pub fn locate_task(task_id: &str) -> Result<PathBuf> {
 }
 
 /// Load task from TOML file
-pub fn load_task(task_id: &str) -> Result<Task> {
-    let file = locate_task(task_id)?;
+pub fn load_task(root_dir: &PathBuf, task_id: &str) -> Result<Task> {
+    let file = locate_task(root_dir, task_id)?;
 
     // Read the contents of the file
     let mut file = File::open(&file)?;
@@ -95,17 +86,16 @@ pub fn load_task(task_id: &str) -> Result<Task> {
 }
 
 /// Load all tasks
-pub fn load_all_tasks() -> Result<Vec<Task>> {
-    let tasks_dir = PathBuf::from(tilde(TASKS_DIR).to_string());
+pub fn load_all_tasks(root_dir: &PathBuf) -> Result<Vec<Task>> {
     let mut tasks = Vec::new();
 
     // Make sure the directory exists
-    if !tasks_dir.exists() {
+    if !root_dir.exists() {
         return Ok(tasks);
     }
 
     // Iterate over all TOML files in the directory
-    for entry in fs::read_dir(tasks_dir)? {
+    for entry in fs::read_dir(root_dir)? {
         let entry = entry?;
         let path = entry.path();
 
@@ -124,12 +114,12 @@ pub fn load_all_tasks() -> Result<Vec<Task>> {
 }
 
 /// Delete task file
-pub fn delete_task(task_id: &str) -> Result<()> {
-    let file = locate_task(task_id)?;
+pub fn delete_task(root_dir: &PathBuf, task_id: &str) -> Result<()> {
+    let file = locate_task(root_dir, task_id)?;
     fs::remove_file(file)?;
 
     // Initialize the Git repository
-    let git_repo = GitRepo::init(tilde(TASKS_DIR).to_string())?;
+    let git_repo = GitRepo::init(root_dir)?;
 
     // Automatically commit changes
     let commit_message = GitRepo::generate_commit_message(task_id, "Delete task");

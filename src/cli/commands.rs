@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-use crate::task::model::{Priority, TaskStatus};
+use crate::task::{Priority, TaskStatus};
 
 /// RuTD - A Rust based To-Do list manager for your rushing to-dos
 #[derive(Parser, Debug)]

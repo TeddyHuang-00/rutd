@@ -1,23 +1,34 @@
 pub mod model;
 pub mod storage;
 
-use std::{error::Error, fs, io::Write, path::Path, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use anyhow::{Result, anyhow};
+pub use model::{Priority, Task, TaskStatus};
+use shellexpand::tilde;
 use uuid::Uuid;
 
-use crate::task::model::{Priority, Task, TaskStatus};
+const TASKS_DIR: &str = "~/.rutd/tasks";
 
 /// Task Manager
 pub struct TaskManager {
-    tasks_dir: String,
+    tasks_dir: PathBuf,
+}
+
+impl Default for TaskManager {
+    fn default() -> Self {
+        TaskManager::new(tilde(TASKS_DIR).as_ref())
+    }
 }
 
 impl TaskManager {
     /// Create a new Task Manager
     pub fn new(tasks_dir: &str) -> Self {
         TaskManager {
-            tasks_dir: tasks_dir.to_string(),
+            tasks_dir: tasks_dir.into(),
         }
     }
 
@@ -37,7 +48,7 @@ impl TaskManager {
             scope,
             task_type,
         );
-        storage::save_task(&task)?;
+        storage::save_task(&self.tasks_dir, &task)?;
         Ok(id)
     }
 
@@ -49,7 +60,7 @@ impl TaskManager {
         type_filter: Option<String>,
         status_filter: Option<TaskStatus>,
     ) -> Result<Vec<Task>> {
-        let tasks = storage::load_all_tasks()?;
+        let tasks = storage::load_all_tasks(&self.tasks_dir)?;
         let filtered_tasks = tasks
             .into_iter()
             .filter(|task| {
@@ -98,11 +109,11 @@ impl TaskManager {
 
     /// Mark a task as completed
     pub fn mark_task_done(&self, task_id: &str) -> Result<()> {
-        let mut task = storage::load_task(task_id)?;
+        let mut task = storage::load_task(&self.tasks_dir, task_id)?;
         task.status = TaskStatus::Done;
         task.updated_at = Some(chrono::Utc::now().to_rfc3339());
         task.completed_at = Some(chrono::Utc::now().to_rfc3339());
-        storage::save_task(&task)?;
+        storage::save_task(&self.tasks_dir, &task)?;
         Ok(())
     }
 
@@ -113,9 +124,9 @@ impl TaskManager {
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
             let status = Command::new(&editor).arg(&task_path).status()?;
             if status.success() {
-                let mut task = storage::load_task(task_id)?;
+                let mut task = storage::load_task(&self.tasks_dir, task_id)?;
                 task.updated_at = Some(chrono::Utc::now().to_rfc3339());
-                storage::save_task(&task)?;
+                storage::save_task(&self.tasks_dir, &task)?;
                 Ok(())
             } else {
                 Err(anyhow!("{} fails to edit the task file", editor))
