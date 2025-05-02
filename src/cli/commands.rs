@@ -1,5 +1,6 @@
-use crate::task::model::{Priority, TaskStatus, TaskType};
 use clap::{Parser, Subcommand, ValueEnum};
+
+use crate::task::model::{Priority, TaskStatus};
 
 /// RuTD - A Rust based To-Do list manager for your rushing to-dos
 #[derive(Parser, Debug)]
@@ -7,13 +8,18 @@ use clap::{Parser, Subcommand, ValueEnum};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
+
+    /// Verbosity level
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    pub verbose: u8,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Add a new task
     ///
-    /// Add a new task to the to-do list, supporting specification of description, priority, scope, and type
+    /// Add a new task to the to-do list, supporting specification of
+    /// description, priority, scope, and type
     #[command()]
     Add {
         /// Task description
@@ -27,13 +33,14 @@ pub enum Commands {
         #[arg(short, long)]
         scope: Option<String>,
 
-        /// Task type
-        #[arg(value_enum, short, long, default_value_t = TaskTypeArg::Feat)]
-        task_type: TaskTypeArg,
+        /// Task type (e.g., feat, fix, other, etc.)
+        #[arg(short, long)]
+        task_type: Option<String>,
     },
     /// List tasks
     ///
-    /// List tasks in the to-do list, supporting filtering by priority, scope, type, and status
+    /// List tasks in the to-do list, supporting filtering by priority, scope,
+    /// type, and status
     #[command()]
     List {
         /// Filter by priority
@@ -41,12 +48,12 @@ pub enum Commands {
         priority: Option<Priority>,
 
         /// Filter by scope (project name)
-        #[arg(short, long)]
+        #[arg(short = 'c', long)]
         scope: Option<String>,
 
         /// Filter by task type
-        #[arg(value_enum, short, long)]
-        task_type: Option<TaskTypeArg>,
+        #[arg(short, long)]
+        task_type: Option<String>,
 
         /// Filter by status
         #[arg(value_enum, short, long)]
@@ -62,29 +69,11 @@ pub enum Commands {
     },
     /// Edit task description
     ///
-    /// Edit the description of the task with the specified ID using the default editor
+    /// Edit the description of the task with the specified ID using the default
+    /// editor
     #[command()]
     Edit {
         /// Task ID
         id: String,
     },
-}
-
-#[derive(ValueEnum, Clone, Debug)]
-pub enum TaskTypeArg {
-    Feat,
-    Fix,
-    Docs,
-    Other,
-}
-
-impl From<TaskTypeArg> for TaskType {
-    fn from(arg: TaskTypeArg) -> Self {
-        match arg {
-            TaskTypeArg::Feat => TaskType::Feat,
-            TaskTypeArg::Fix => TaskType::Fix,
-            TaskTypeArg::Docs => TaskType::Docs,
-            TaskTypeArg::Other => TaskType::Other("other".to_string()),
-        }
-    }
 }

@@ -1,15 +1,19 @@
-use crate::git::repo::GitRepo;
-use crate::task::model::Task;
+use std::{
+    fs::{self, File},
+    io::{Read, Write},
+    path::PathBuf,
+};
+
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::fs::{self, File};
-use std::io::{Read, Write};
-use std::path::PathBuf;
 use uuid::Uuid;
+
+use crate::{git::repo::GitRepo, task::model::Task};
 
 const TASKS_DIR: &str = ".todos/tasks";
 
 /// Save task to TOML file
-pub fn save_task(task: &Task) -> Result<(), Box<dyn std::error::Error>> {
+pub fn save_task(task: &Task) -> Result<()> {
     // Make sure the tasks directory exists
     fs::create_dir_all(TASKS_DIR)?;
 
@@ -34,22 +38,57 @@ pub fn save_task(task: &Task) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Load task from TOML file
-pub fn load_task(task_id: &str) -> Result<Task, Box<dyn std::error::Error>> {
-    let file_path = PathBuf::from(TASKS_DIR).join(format!("{}.toml", task_id));
+///
+/// The function searches for a task file in the specified directory that
+/// matches the given task ID.
+///
+/// Short IDs are supported, so if the task ID is "1234", it will match
+/// "1234.toml" and "1234-5678.toml", as long as it is the only file that starts
+/// with "1234".
+pub fn load_task(task_id: &str) -> Result<Task> {
+    let tasks_dir = PathBuf::from(TASKS_DIR);
 
-    // Read the contents of the file
-    let mut file = File::open(file_path)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
+    // Make sure the directory exists
+    if !tasks_dir.exists() {
+        anyhow::bail!("Tasks directory does not exist");
+    }
 
-    // Deserialize the TOML content into a Task struct
-    let task: Task = toml::from_str(&contents)?;
+    let mut matching_files = Vec::new();
 
-    Ok(task)
+    // Iterate over all TOML files in the directory
+    for entry in fs::read_dir(tasks_dir)? {
+        let path = entry?.path();
+
+        if path.is_file()
+            && path.extension().and_then(|s| s.to_str()) == Some("toml")
+            && path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .is_some_and(|stem| stem.starts_with(task_id))
+        {
+            matching_files.push(path);
+        }
+    }
+
+    match matching_files.len() {
+        0 => anyhow::bail!("No task found with ID starting with {}", task_id),
+        1 => {
+            // Read the contents of the file
+            let mut file = File::open(&matching_files[0])?;
+            let mut contents = String::new();
+            file.read_to_string(&mut contents)?;
+
+            // Deserialize the TOML content into a Task struct
+            let task: Task = toml::from_str(&contents)?;
+
+            Ok(task)
+        }
+        _ => anyhow::bail!("Multiple tasks found with ID starting with {}", task_id),
+    }
 }
 
 /// Load all tasks
-pub fn load_all_tasks() -> Result<Vec<Task>, Box<dyn std::error::Error>> {
+pub fn load_all_tasks() -> Result<Vec<Task>> {
     let tasks_dir = PathBuf::from(TASKS_DIR);
     let mut tasks = Vec::new();
 
@@ -78,7 +117,7 @@ pub fn load_all_tasks() -> Result<Vec<Task>, Box<dyn std::error::Error>> {
 }
 
 /// Delete task file
-pub fn delete_task(task_id: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn delete_task(task_id: &str) -> Result<()> {
     let file_path = PathBuf::from(TASKS_DIR).join(format!("{}.toml", task_id));
     if file_path.exists() {
         fs::remove_file(file_path)?;

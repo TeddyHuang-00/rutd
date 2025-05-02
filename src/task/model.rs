@@ -1,6 +1,7 @@
+use std::fmt;
+
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 /// Task Priority
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
@@ -18,26 +19,6 @@ impl fmt::Display for Priority {
             Priority::High => write!(f, "High"),
             Priority::Normal => write!(f, "Normal"),
             Priority::Low => write!(f, "Low"),
-        }
-    }
-}
-
-/// Task Type
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TaskType {
-    Feat,
-    Fix,
-    Docs,
-    Other(String),
-}
-
-impl fmt::Display for TaskType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TaskType::Feat => write!(f, "feat"),
-            TaskType::Fix => write!(f, "fix"),
-            TaskType::Docs => write!(f, "docs"),
-            TaskType::Other(s) => write!(f, "{}", s),
         }
     }
 }
@@ -73,8 +54,8 @@ pub struct Task {
     pub priority: Priority,
     /// Task scope (project name, etc., optional)
     pub scope: Option<String>,
-    /// Task type (e.g., feat, fix, etc.)
-    pub task_type: TaskType,
+    /// Task type (e.g., feat, fix, other, etc.)
+    pub task_type: Option<String>,
     /// Task status
     pub status: TaskStatus,
     /// Task creation time in ISO format
@@ -91,7 +72,7 @@ impl Task {
         description: String,
         priority: Priority,
         scope: Option<String>,
-        task_type: TaskType,
+        task_type: Option<String>,
     ) -> Self {
         Task {
             id,
