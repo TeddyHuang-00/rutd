@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Result;
-use git2::{Commit, ObjectType, Repository, Signature};
+use git2::{ObjectType, Repository, Signature};
 
 pub struct GitRepo {
     repo: Repository,
