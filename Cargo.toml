@@ -2,6 +2,13 @@
 name = "rutd"
 version = "0.1.0"
 edition = "2024"
+description = "A Rust CLI tool for managing and tracking your daily tasks. Git-friendly and easy to use."
+authors = ["Teddy Huang <teddyhuangnan@gmail.com>"]
+repository = "https://github.com/TeddyHuang-00/rutd"
+readme = "README.md"
+license = "MIT"
+categories = ["command-line-utilities", "productivity", "task-management"]
+keywords = ["cli", "task", "todo", "git", "productivity"]
 
 [dependencies]
 clap = { version = "4.4.11", features = ["derive"] }
