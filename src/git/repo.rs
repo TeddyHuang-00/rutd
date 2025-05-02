@@ -11,13 +11,8 @@ impl GitRepo {
     /// Initialize Git repository, create a new one if it doesn't exist
     pub fn init<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
-        let repo = match Repository::open(path) {
-            Ok(repo) => repo,
-            Err(_) => {
-                // If the repository doesn't exist, create a new one
-                Repository::init(path)?
-            }
-        };
+        // If the repository doesn't exist, create a new one
+        let repo = Repository::open(path).or_else(|_| Repository::init(path))?;
         Ok(GitRepo { repo })
     }
 
