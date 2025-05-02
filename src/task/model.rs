@@ -3,6 +3,8 @@ use std::fmt;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
+// FIXME: Visible aliases for value enum is not yet supported in clap, see
+// https://github.com/clap-rs/clap/pull/5480
 /// Task Priority
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum Priority {
@@ -31,6 +33,8 @@ impl fmt::Display for Priority {
     }
 }
 
+// FIXME: Visible aliases for value enum is not yet supported in clap, see
+// https://github.com/clap-rs/clap/pull/5480
 /// Task Status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum TaskStatus {
