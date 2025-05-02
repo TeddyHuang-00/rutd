@@ -1,15 +1,23 @@
+pub mod active_task;
 pub mod model;
 pub mod storage;
 
 use std::{
-    path::{Path, PathBuf},
+    io::{Read, Write},
+    path::PathBuf,
     process::Command,
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
+use chrono::{DateTime, Duration, Utc};
+use dialoguer::Confirm;
+use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
+use log::debug;
 pub use model::{Priority, Task, TaskStatus};
 use shellexpand::tilde;
 use uuid::Uuid;
+
+use crate::{git::repo::GitRepo, task::active_task::ActiveTask};
 
 const TASKS_DIR: &str = "~/.rutd/tasks";
 
@@ -59,6 +67,10 @@ impl TaskManager {
         scope_filter: Option<&str>,
         type_filter: Option<String>,
         status_filter: Option<TaskStatus>,
+        from_date: Option<&str>,
+        to_date: Option<&str>,
+        fuzzy_query: Option<&str>,
+        show_stats: bool,
     ) -> Result<Vec<Task>> {
         let tasks = storage::load_all_tasks(&self.tasks_dir)?;
         let filtered_tasks = tasks
@@ -70,9 +82,42 @@ impl TaskManager {
                     &scope_filter,
                     &type_filter,
                     &status_filter,
+                    &from_date,
+                    &to_date,
+                    &fuzzy_query,
                 )
             })
-            .collect();
+            .collect::<Vec<Task>>();
+
+        // Show statistics if requested
+        if show_stats && !filtered_tasks.is_empty() {
+            let total_tasks = filtered_tasks.len();
+            let completed_tasks = filtered_tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::Done)
+                .count();
+            let aborted_tasks = filtered_tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::Aborted)
+                .count();
+            let in_progress_tasks = filtered_tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::InProgress)
+                .count();
+            let total_time_spent: u64 = filtered_tasks.iter().filter_map(|t| t.time_spent).sum();
+
+            log::info!("Statistics:");
+            log::info!("  Total tasks: {}", total_tasks);
+            log::info!("  Completed tasks: {}", completed_tasks);
+            log::info!("  Aborted tasks: {}", aborted_tasks);
+            log::info!("  In-progress tasks: {}", in_progress_tasks);
+            log::info!(
+                "  Total time spent: {} hours {} minutes",
+                total_time_spent / 3600,
+                (total_time_spent % 3600) / 60
+            );
+        }
+
         Ok(filtered_tasks)
     }
 
@@ -83,7 +128,11 @@ impl TaskManager {
         scope_filter: &Option<&str>,
         type_filter: &Option<String>,
         status_filter: &Option<TaskStatus>,
+        from_date: &Option<&str>,
+        to_date: &Option<&str>,
+        fuzzy_query: &Option<&str>,
     ) -> bool {
+        // Check basic filters
         if let Some(p) = priority_filter {
             if task.priority != *p {
                 return false;
@@ -104,35 +153,372 @@ impl TaskManager {
                 return false;
             }
         }
+
+        // Check date range filters
+        if let Some(from) = from_date {
+            if let Some(completed_at) = &task.completed_at {
+                if let (Ok(from_date), Ok(completed_date)) = (
+                    DateTime::parse_from_rfc3339(from),
+                    DateTime::parse_from_rfc3339(completed_at),
+                ) {
+                    if completed_date < from_date {
+                        return false;
+                    }
+                }
+            } else if task.status == TaskStatus::Done || task.status == TaskStatus::Aborted {
+                // If the task is completed but has no completion date, exclude it
+                return false;
+            }
+        }
+
+        if let Some(to) = to_date {
+            if let Some(completed_at) = &task.completed_at {
+                if let (Ok(to_date), Ok(completed_date)) = (
+                    DateTime::parse_from_rfc3339(to),
+                    DateTime::parse_from_rfc3339(completed_at),
+                ) {
+                    if completed_date > to_date {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        // Check fuzzy matching on description
+        if let Some(query) = fuzzy_query {
+            if !query.is_empty() {
+                let matcher = SkimMatcherV2::default();
+                if matcher.fuzzy_match(&task.description, query).is_none() {
+                    return false;
+                }
+            }
+        }
+
         true
     }
 
     /// Mark a task as completed
     pub fn mark_task_done(&self, task_id: &str) -> Result<()> {
         let mut task = storage::load_task(&self.tasks_dir, task_id)?;
+
+        // Check if the task is already done
+        if task.status == TaskStatus::Done {
+            return Err(anyhow!("Task is already completed"));
+        }
+
+        // Check if this is the active task
+        let is_active_task = match active_task::load_active_task(&self.tasks_dir)? {
+            Some(active) => {
+                if active.task_id == task_id {
+                    // Calculate time spent using the active task record
+                    let started_time = DateTime::parse_from_rfc3339(&active.started_at)
+                        .context("Failed to parse started_at time from active task record")?;
+                    let now = Utc::now();
+                    let duration = now.signed_duration_since(started_time.with_timezone(&Utc));
+
+                    // Calculate total seconds spent
+                    let seconds_spent = duration.num_seconds().max(0) as u64;
+
+                    // Add to existing time_spent or initialize it
+                    task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
+
+                    true
+                } else {
+                    false
+                }
+            }
+            None => false,
+        };
+
+        // Update task status and timestamps
         task.status = TaskStatus::Done;
         task.updated_at = Some(chrono::Utc::now().to_rfc3339());
         task.completed_at = Some(chrono::Utc::now().to_rfc3339());
+
+        // Save the updated task
         storage::save_task(&self.tasks_dir, &task)?;
+
+        // If this was the active task, clear the active task record
+        if is_active_task {
+            active_task::clear_active_task(&self.tasks_dir, task_id)?;
+            debug!(
+                "Completed active task: {} and cleared active task file",
+                task_id
+            );
+        } else {
+            debug!("Completed task: {}", task_id);
+        }
+
+        Ok(())
+    }
+
+    /// Start working on a task
+    pub fn start_task(&self, task_id: &str) -> Result<()> {
+        // Check if there's already an active task using the dedicated file
+        if let Some(active) = active_task::load_active_task(&self.tasks_dir)? {
+            // There's already an active task
+            let active_task_obj = storage::load_task(&self.tasks_dir, &active.task_id)?;
+            return Err(anyhow!(
+                "There's already an active task: {} - {}. Stop it first.",
+                active.task_id,
+                active_task_obj.description
+            ));
+        }
+
+        // Load and update the task
+        let mut task = storage::load_task(&self.tasks_dir, task_id)?;
+
+        // Check if task is already completed or aborted
+        if task.status == TaskStatus::Done {
+            return Err(anyhow!("Cannot start a completed task"));
+        }
+        if task.status == TaskStatus::Aborted {
+            return Err(anyhow!("Cannot start an aborted task"));
+        }
+
+        // Get current time
+        let now = chrono::Utc::now().to_rfc3339();
+
+        // Update task status and timestamp
+        task.status = TaskStatus::InProgress;
+        task.updated_at = Some(now.clone());
+
+        // Save the task
+        storage::save_task(&self.tasks_dir, &task)?;
+
+        // Create and save the active task record
+        let active = ActiveTask::new(task.id.clone(), now);
+        active_task::save_active_task(&self.tasks_dir, &active)?;
+
+        debug!("Started task: {} and saved to active task file", task_id);
+        Ok(())
+    }
+
+    /// Stop working on a task
+    pub fn stop_task(&self, task_id: &str) -> Result<()> {
+        // Check if this task is actually the active task
+        let active_task_info = match active_task::load_active_task(&self.tasks_dir)? {
+            Some(active) if active.task_id == task_id => {
+                // Proceed with stopping the active task
+                debug!("Found matching active task: {}", active.task_id);
+                active
+            }
+            Some(active) => {
+                // A different task is active
+                return Err(anyhow!(
+                    "Task {} is not the active task. The active task is {}.",
+                    task_id,
+                    active.task_id
+                ));
+            }
+            None => {
+                // No active task is registered
+                return Err(anyhow!(
+                    "No active task found. Task might not be in progress."
+                ));
+            }
+        };
+
+        // Load the task
+        let mut task = storage::load_task(&self.tasks_dir, task_id)?;
+
+        // Check if the task is in progress (double-check)
+        if task.status != TaskStatus::InProgress {
+            return Err(anyhow!("Task is not in progress"));
+        }
+
+        // Calculate time spent using the active task record
+        let started_time = DateTime::parse_from_rfc3339(&active_task_info.started_at)
+            .context("Failed to parse started_at time from active task record")?;
+        let now = Utc::now();
+        let duration = now.signed_duration_since(started_time.with_timezone(&Utc));
+
+        // Calculate total seconds spent
+        let seconds_spent = duration.num_seconds().max(0) as u64;
+
+        // Add to existing time_spent or initialize it
+        task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
+
+        // Update task status and timestamps
+        task.status = TaskStatus::Todo; // Return to Todo state
+        task.updated_at = Some(chrono::Utc::now().to_rfc3339());
+
+        // Save the updated task
+        storage::save_task(&self.tasks_dir, &task)?;
+
+        // Clear the active task record
+        active_task::clear_active_task(&self.tasks_dir, task_id)?;
+
+        debug!("Stopped task: {} and cleared active task file", task_id);
+        Ok(())
+    }
+
+    /// Mark a task as aborted
+    pub fn abort_task(&self, task_id: &str) -> Result<()> {
+        let mut task = storage::load_task(&self.tasks_dir, task_id)?;
+
+        // Check if the task is already done or aborted
+        if task.status == TaskStatus::Done {
+            return Err(anyhow!("Cannot abort a completed task"));
+        }
+        if task.status == TaskStatus::Aborted {
+            return Err(anyhow!("Task is already aborted"));
+        }
+
+        // Check if this is the active task
+        let is_active_task = match active_task::load_active_task(&self.tasks_dir)? {
+            Some(active) => {
+                if active.task_id == task_id {
+                    // Calculate time spent using the active task record
+                    let started_time = DateTime::parse_from_rfc3339(&active.started_at)
+                        .context("Failed to parse started_at time from active task record")?;
+                    let now = Utc::now();
+                    let duration = now.signed_duration_since(started_time.with_timezone(&Utc));
+
+                    // Calculate total seconds spent
+                    let seconds_spent = duration.num_seconds().max(0) as u64;
+
+                    // Add to existing time_spent or initialize it
+                    task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
+
+                    true
+                } else {
+                    false
+                }
+            }
+            None => false,
+        };
+
+        // Update task status and timestamps
+        task.status = TaskStatus::Aborted;
+        task.updated_at = Some(chrono::Utc::now().to_rfc3339());
+        task.completed_at = Some(chrono::Utc::now().to_rfc3339());
+
+        // Save the updated task
+        storage::save_task(&self.tasks_dir, &task)?;
+
+        // If this was the active task, clear the active task record
+        if is_active_task {
+            active_task::clear_active_task(&self.tasks_dir, task_id)?;
+            debug!(
+                "Aborted active task: {} and cleared active task file",
+                task_id
+            );
+        } else {
+            debug!("Aborted task: {}", task_id);
+        }
+
         Ok(())
     }
 
     /// Edit task description
     pub fn edit_task_description(&self, task_id: &str) -> Result<()> {
-        let task_path = Path::new(".todos/tasks").join(format!("{}.toml", task_id));
-        if task_path.exists() {
-            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
-            let status = Command::new(&editor).arg(&task_path).status()?;
-            if status.success() {
-                let mut task = storage::load_task(&self.tasks_dir, task_id)?;
+        // Load the task
+        let mut task = storage::load_task(&self.tasks_dir, task_id)?;
+
+        // Create a temporary file for editing
+        let mut temp_file = tempfile::NamedTempFile::new()?;
+
+        // Write the task description to the temporary file
+        temp_file.write_all(task.description.as_bytes())?;
+
+        // Get the editor from environment variable or use a default
+        let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+
+        // Open the editor
+        let status = Command::new(&editor)
+            .arg(temp_file.path())
+            .status()
+            .context(format!("Failed to open editor {}", editor))?;
+
+        if status.success() {
+            // Read back the edited content
+            let mut temp_file = temp_file.reopen()?;
+
+            // Read the contents of the temporary file
+            let mut new_description = String::new();
+            temp_file.read_to_string(&mut new_description)?;
+
+            // Trim whitespace
+            let new_description = new_description.trim().to_string();
+
+            // Only update if description has changed
+            if new_description != task.description {
+                task.description = new_description;
                 task.updated_at = Some(chrono::Utc::now().to_rfc3339());
                 storage::save_task(&self.tasks_dir, &task)?;
-                Ok(())
-            } else {
-                Err(anyhow!("{} fails to edit the task file", editor))
             }
+
+            Ok(())
         } else {
-            Err(anyhow!("Task {} not found", task_id))
+            Err(anyhow!("Editor exited with non-zero status"))
         }
+    }
+
+    /// Clean tasks based on filters
+    pub fn clean_tasks(
+        &self,
+        priority_filter: Option<Priority>,
+        scope_filter: Option<&str>,
+        type_filter: Option<String>,
+        status_filter: Option<TaskStatus>,
+        older_than: Option<u32>,
+        force: bool,
+    ) -> Result<usize> {
+        // Get tasks matching filters
+        let tasks = self.list_tasks(
+            priority_filter,
+            scope_filter,
+            type_filter.clone(),
+            status_filter,
+            None,
+            None,
+            None,
+            false,
+        )?;
+
+        // Filter by age if specified
+        let tasks = if let Some(days) = older_than {
+            let now = Utc::now();
+            let cutoff_date = now - Duration::days(days as i64);
+
+            tasks
+                .into_iter()
+                .filter(|task| {
+                    if let Some(completed_at) = &task.completed_at {
+                        if let Ok(completed_date) = DateTime::parse_from_rfc3339(completed_at) {
+                            return completed_date.with_timezone(&Utc) < cutoff_date;
+                        }
+                    }
+                    false
+                })
+                .collect()
+        } else {
+            tasks
+        };
+
+        let count = tasks.len();
+
+        // Confirm deletion if not forced
+        if count > 0 && !force {
+            let message = format!("Are you sure you want to delete {} tasks?", count);
+            if !Confirm::new().with_prompt(message).interact()? {
+                return Ok(0);
+            }
+        }
+
+        // Delete tasks
+        for task in tasks {
+            storage::delete_task(&self.tasks_dir, &task.id)?;
+        }
+
+        Ok(count)
+    }
+
+    /// Sync with remote repository
+    pub fn sync(&self) -> Result<()> {
+        let git_repo = GitRepo::init(&self.tasks_dir)?;
+        git_repo.sync()?;
+        Ok(())
     }
 }
