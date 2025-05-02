@@ -8,11 +8,12 @@ use std::{
     process::Command,
 };
 
+use crate::git::MergeStrategy;
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Duration, Utc};
 use dialoguer::Confirm;
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
-use log::debug;
+use log::{debug, info};
 pub use model::{Priority, Task, TaskStatus};
 use shellexpand::tilde;
 use uuid::Uuid;
@@ -515,10 +516,17 @@ impl TaskManager {
         Ok(count)
     }
 
+    /// Clone a remote repository
+    pub fn clone_repo(&self, url: &str) -> Result<()> {
+        GitRepo::clone(&self.tasks_dir, url)?;
+        info!("Successfully cloned from {}", url);
+        Ok(())
+    }
+
     /// Sync with remote repository
-    pub fn sync(&self) -> Result<()> {
+    pub fn sync(&self, prefer: MergeStrategy) -> Result<()> {
         let git_repo = GitRepo::init(&self.tasks_dir)?;
-        git_repo.sync()?;
+        git_repo.sync(prefer)?;
         Ok(())
     }
 }

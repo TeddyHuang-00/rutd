@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 
+use crate::git::MergeStrategy;
 use crate::task::{Priority, TaskStatus};
 
 /// RuTD - A Rust based To-Do list manager for your rushing to-dos
@@ -150,5 +151,17 @@ pub enum Commands {
     ///
     /// Fetch, pull and push changes to the remote repository
     #[command()]
-    Sync {},
+    Sync {
+        /// Conflict resolution preference when merging
+        #[arg(short, long, value_enum, default_value_t = MergeStrategy::None)]
+        prefer: MergeStrategy,
+    },
+    /// Clone a remote repository
+    ///
+    /// Clone a remote repository to the local tasks directory
+    #[command()]
+    Clone {
+        /// Remote repository URL to clone
+        url: String,
+    },
 }

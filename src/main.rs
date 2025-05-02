@@ -264,14 +264,31 @@ fn main() -> ExitCode {
                 }
             }
         }
-        cli::commands::Commands::Sync {} => {
+        cli::commands::Commands::Sync { prefer } => {
             trace!("Sync with remote repository");
+            debug!("Conflict resolution preference: {}", prefer);
 
             // Use TaskManager to sync with remote repository
             if task_manager
-                .sync()
+                .sync(*prefer)
                 .inspect(|_| info!("Successfully synced tasks with remote repository"))
                 .inspect_err(|e| error!("Failed to sync tasks: {}", e))
+                .is_ok()
+            {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        cli::commands::Commands::Clone { url } => {
+            trace!("Clone remote repository");
+            debug!("Repository URL: {}", url);
+
+            // Use TaskManager to clone remote repository
+            if task_manager
+                .clone_repo(url)
+                .inspect(|_| info!("Successfully cloned remote repository to tasks directory"))
+                .inspect_err(|e| error!("Failed to clone repository: {}", e))
                 .is_ok()
             {
                 ExitCode::SUCCESS
