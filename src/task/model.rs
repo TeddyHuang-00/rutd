@@ -6,9 +6,17 @@ use serde::{Deserialize, Serialize};
 /// Task Priority
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum Priority {
+    /// Most urgent (alias: u, 0)
+    #[value(aliases = ["u", "0"])]
     Urgent,
+    /// High priority (alias: h, 1)
+    #[value(aliases = ["h", "1"])]
     High,
+    /// Normal priority (alias: n, 2)
+    #[value(aliases = ["n", "2"])]
     Normal,
+    /// Low priority (alias: l, 3)
+    #[value(aliases = ["l", "3"])]
     Low,
 }
 
