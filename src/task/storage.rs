@@ -6,22 +6,26 @@ use std::{
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use shellexpand::tilde;
 use uuid::Uuid;
 
 use crate::{git::repo::GitRepo, task::model::Task};
 
-const TASKS_DIR: &str = ".todos/tasks";
+const TASKS_DIR: &str = "~/.rutd";
 
 /// Save task to TOML file
 pub fn save_task(task: &Task) -> Result<()> {
+    // Expand the tilde in the tasks directory path
+    let tasks_dir = tilde(TASKS_DIR).to_string();
+
     // Make sure the tasks directory exists
-    fs::create_dir_all(TASKS_DIR)?;
+    fs::create_dir_all(&tasks_dir)?;
 
     // Initialize the Git repository
-    let git_repo = GitRepo::init(".todos")?;
+    let git_repo = GitRepo::init(&tasks_dir)?;
 
     // Use the task's UUID as the filename
-    let file_path = PathBuf::from(TASKS_DIR).join(format!("{}.toml", task.id));
+    let file_path = PathBuf::from(&tasks_dir).join(format!("{}.toml", task.id));
 
     // Serialize the task to TOML format
     let toml_string = toml::to_string(task)?;
@@ -37,22 +41,20 @@ pub fn save_task(task: &Task) -> Result<()> {
     Ok(())
 }
 
-/// Load task from TOML file
+/// Locate task file by ID
 ///
 /// The function searches for a task file in the specified directory that
 /// matches the given task ID.
 ///
 /// Short IDs are supported, so if the task ID is "1234", it will match
-/// "1234.toml" and "1234-5678.toml", as long as it is the only file that starts
-/// with "1234".
-pub fn load_task(task_id: &str) -> Result<Task> {
-    let tasks_dir = PathBuf::from(TASKS_DIR);
-
+/// "1234.toml" and "1234-5678.toml", as long as it is enough to uniquely
+/// identify the file.
+pub fn locate_task(task_id: &str) -> Result<PathBuf> {
+    let tasks_dir = PathBuf::from(tilde(TASKS_DIR).to_string());
     // Make sure the directory exists
     if !tasks_dir.exists() {
         anyhow::bail!("Tasks directory does not exist");
     }
-
     let mut matching_files = Vec::new();
 
     // Iterate over all TOML files in the directory
@@ -71,25 +73,30 @@ pub fn load_task(task_id: &str) -> Result<Task> {
     }
 
     match matching_files.len() {
+        1 => Ok(matching_files.pop().unwrap()),
         0 => anyhow::bail!("No task found with ID starting with {}", task_id),
-        1 => {
-            // Read the contents of the file
-            let mut file = File::open(&matching_files[0])?;
-            let mut contents = String::new();
-            file.read_to_string(&mut contents)?;
-
-            // Deserialize the TOML content into a Task struct
-            let task: Task = toml::from_str(&contents)?;
-
-            Ok(task)
-        }
         _ => anyhow::bail!("Multiple tasks found with ID starting with {}", task_id),
     }
 }
 
+/// Load task from TOML file
+pub fn load_task(task_id: &str) -> Result<Task> {
+    let file = locate_task(task_id)?;
+
+    // Read the contents of the file
+    let mut file = File::open(&file)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    // Deserialize the TOML content into a Task struct
+    let task = toml::from_str(&contents)?;
+
+    Ok(task)
+}
+
 /// Load all tasks
 pub fn load_all_tasks() -> Result<Vec<Task>> {
-    let tasks_dir = PathBuf::from(TASKS_DIR);
+    let tasks_dir = PathBuf::from(tilde(TASKS_DIR).to_string());
     let mut tasks = Vec::new();
 
     // Make sure the directory exists
@@ -118,16 +125,14 @@ pub fn load_all_tasks() -> Result<Vec<Task>> {
 
 /// Delete task file
 pub fn delete_task(task_id: &str) -> Result<()> {
-    let file_path = PathBuf::from(TASKS_DIR).join(format!("{}.toml", task_id));
-    if file_path.exists() {
-        fs::remove_file(file_path)?;
+    let file = locate_task(task_id)?;
+    fs::remove_file(file)?;
 
-        // Initialize the Git repository
-        let git_repo = GitRepo::init(".todos")?;
+    // Initialize the Git repository
+    let git_repo = GitRepo::init(tilde(TASKS_DIR).to_string())?;
 
-        // Automatically commit changes
-        let commit_message = GitRepo::generate_commit_message(task_id, "Delete task");
-        git_repo.commit_changes(&commit_message)?;
-    }
+    // Automatically commit changes
+    let commit_message = GitRepo::generate_commit_message(task_id, "Delete task");
+    git_repo.commit_changes(&commit_message)?;
     Ok(())
 }
