@@ -69,6 +69,10 @@ fn main() -> ExitCode {
             scope,
             task_type,
             status,
+            from_date,
+            to_date,
+            fuzzy,
+            stats,
         } => {
             trace!("List tasks");
             if let Some(p) = priority {
@@ -83,28 +87,56 @@ fn main() -> ExitCode {
             if let Some(s) = status {
                 debug!("Filter by status: {}", s);
             }
+            if let Some(f) = from_date {
+                debug!("Filter by completion date from: {}", f);
+            }
+            if let Some(t) = to_date {
+                debug!("Filter by completion date to: {}", t);
+            }
+            if let Some(f) = fuzzy {
+                debug!("Search using fuzzy match: {}", f);
+            }
+            debug!("Show statistics: {}", stats);
 
             // Use TaskManager to list tasks
             if let Ok(tasks) = task_manager
-                .list_tasks(*priority, scope.as_deref(), task_type.clone(), *status)
+                .list_tasks(
+                    *priority,
+                    scope.as_deref(),
+                    task_type.clone(),
+                    *status,
+                    from_date.as_deref(),
+                    to_date.as_deref(),
+                    fuzzy.as_deref(),
+                    *stats,
+                )
                 .inspect_err(|e| error!("Error loading task list: {}", e))
             {
-                // Display the task list
+                // Display the task list if tasks are found
                 if tasks.is_empty() {
                     info!("No tasks found matching the criteria.");
-                }
-
-                // TODO: Display tasks in a more user-friendly format such as in tables
-                for task in tasks {
-                    info!("- ID: {}", task.id);
-                    info!("  Description: {}", task.description);
-                    info!("  Priority: {}", task.priority);
-                    info!("  Status: {}", task.status);
-                    if let Some(sc) = &task.scope {
-                        info!("  Scope: {}", sc);
-                    }
-                    if let Some(tt) = &task.task_type {
-                        info!("  Type: {}", tt);
+                } else {
+                    // TODO: Display tasks in a more user-friendly format such as in tables
+                    for task in tasks {
+                        info!("- ID: {}", task.id);
+                        info!("  Description: {}", task.description);
+                        info!("  Priority: {}", task.priority);
+                        info!("  Status: {}", task.status);
+                        if let Some(sc) = &task.scope {
+                            info!("  Scope: {}", sc);
+                        }
+                        if let Some(tt) = &task.task_type {
+                            info!("  Type: {}", tt);
+                        }
+                        if let Some(ts) = task.time_spent {
+                            let hours = ts / 3600;
+                            let minutes = (ts % 3600) / 60;
+                            let seconds = ts % 60;
+                            info!("  Time spent: {}h {}m {}s", hours, minutes, seconds);
+                        }
+                        if let Some(completed_at) = &task.completed_at {
+                            info!("  Completed at: {}", completed_at);
+                        }
                     }
                 }
                 ExitCode::SUCCESS
@@ -119,7 +151,7 @@ fn main() -> ExitCode {
             if task_manager
                 .mark_task_done(id)
                 .inspect(|_| info!("Finished task {}", id))
-                .inspect_err(|e| error!("Fail to mark task as finished: {}", e))
+                .inspect_err(|e| error!("Failed to mark task as finished: {}", e))
                 .is_ok()
             {
                 ExitCode::SUCCESS
@@ -134,7 +166,112 @@ fn main() -> ExitCode {
             if task_manager
                 .edit_task_description(id)
                 .inspect(|_| info!("Updated task {}", id))
-                .inspect_err(|e| error!("Fail to update task: {}", e))
+                .inspect_err(|e| error!("Failed to update task: {}", e))
+                .is_ok()
+            {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        cli::commands::Commands::Start { id } => {
+            trace!("Start task {}", id);
+
+            // Use TaskManager to start task
+            if task_manager
+                .start_task(id)
+                .inspect(|_| info!("Started task {}", id))
+                .inspect_err(|e| error!("Failed to start task: {}", e))
+                .is_ok()
+            {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        cli::commands::Commands::Stop { id } => {
+            trace!("Stop task {}", id);
+
+            // Use TaskManager to stop task
+            if task_manager
+                .stop_task(id)
+                .inspect(|_| info!("Stopped task {}", id))
+                .inspect_err(|e| error!("Failed to stop task: {}", e))
+                .is_ok()
+            {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        cli::commands::Commands::Abort { id } => {
+            trace!("Abort task {}", id);
+
+            // Use TaskManager to abort task
+            if task_manager
+                .abort_task(id)
+                .inspect(|_| info!("Aborted task {}", id))
+                .inspect_err(|e| error!("Failed to abort task: {}", e))
+                .is_ok()
+            {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        cli::commands::Commands::Clean {
+            priority,
+            scope,
+            task_type,
+            status,
+            older_than,
+            force,
+        } => {
+            trace!("Clean tasks");
+            if let Some(p) = priority {
+                debug!("Filter by priority: {}", p);
+            }
+            if let Some(s) = scope {
+                debug!("Filter by scope: {}", s);
+            }
+            if let Some(t) = task_type {
+                debug!("Filter by type: {:?}", t);
+            }
+            if let Some(s) = status {
+                debug!("Filter by status: {}", s);
+            }
+            if let Some(days) = older_than {
+                debug!("Filter by age: older than {} days", days);
+            }
+            debug!("Force clean without confirmation: {}", force);
+
+            // Use TaskManager to clean tasks
+            match task_manager.clean_tasks(
+                *priority,
+                scope.as_deref(),
+                task_type.clone(),
+                *status,
+                *older_than,
+                *force,
+            ) {
+                Ok(count) => {
+                    info!("Removed {} tasks", count);
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    error!("Failed to clean tasks: {}", e);
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        cli::commands::Commands::Sync {} => {
+            trace!("Sync with remote repository");
+
+            // Use TaskManager to sync with remote repository
+            if task_manager
+                .sync()
+                .inspect(|_| info!("Successfully synced tasks with remote repository"))
+                .inspect_err(|e| error!("Failed to sync tasks: {}", e))
                 .is_ok()
             {
                 ExitCode::SUCCESS
