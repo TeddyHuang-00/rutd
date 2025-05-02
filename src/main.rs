@@ -174,8 +174,8 @@ fn main() -> ExitCode {
             else {
                 return ExitCode::FAILURE;
             };
-            // Get the editor from environment variable or default to "vi"
-            let editor = env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+            // Get the editor from environment variable or default to "nano"
+            let editor = env::var("EDITOR").unwrap_or_else(|_| "nano".to_string());
 
             // Create a temporary file for editing
             let temp_file = format!("/tmp/rutd_edit_{}.txt", task.id);
@@ -195,7 +195,7 @@ fn main() -> ExitCode {
             // Read the updated content from the temporary file
             let new_description =
                 std::fs::read_to_string(&temp_file).expect("Unable to read temporary file");
-            task.description = new_description;
+            task.description = new_description.trim().to_string();
             task.updated_at = Some(chrono::Utc::now().to_rfc3339());
 
             // Save the updated task
