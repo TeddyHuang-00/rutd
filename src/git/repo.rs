@@ -2,11 +2,10 @@ use std::{env, ffi::OsStr, os::unix::ffi::OsStrExt, path::Path};
 
 use anyhow::{Context, Result};
 use git2::{
-    Cred, CredentialType, ErrorCode, FetchOptions, FileFavor, IndexAddOption, MergeAnalysis,
-    MergeOptions, ObjectType, PushOptions, RemoteCallbacks, Repository, Signature,
-    build::CheckoutBuilder,
+    Cred, CredentialType, ErrorCode, FetchOptions, FileFavor, IndexAddOption, MergeOptions,
+    ObjectType, PushOptions, RemoteCallbacks, Repository, Signature, build::CheckoutBuilder,
 };
-use log::{debug, error, info, trace, warn};
+use log::{debug, info};
 
 use crate::git::MergeStrategy;
 

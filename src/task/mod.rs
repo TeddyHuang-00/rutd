@@ -10,14 +10,14 @@ use std::{
 
 use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, Duration, Utc};
-use dialoguer::Confirm;
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
-use log::{debug, info};
+use log::debug;
 pub use model::{Priority, Task, TaskStatus};
 use shellexpand::tilde;
 use uuid::Uuid;
 
 use crate::{
+    display::DisplayManager,
     git::{MergeStrategy, repo::GitRepo},
     task::active_task::ActiveTask,
 };
@@ -92,31 +92,7 @@ impl TaskManager {
             })
             .collect::<Vec<Task>>();
 
-        // Show statistics if requested
-        if show_stats && !filtered_tasks.is_empty() {
-            let total_tasks = filtered_tasks.len();
-            let completed_tasks = filtered_tasks
-                .iter()
-                .filter(|t| t.status == TaskStatus::Done)
-                .count();
-            let aborted_tasks = filtered_tasks
-                .iter()
-                .filter(|t| t.status == TaskStatus::Aborted)
-                .count();
-            let in_progress_tasks = 0; // 不再统计 InProgress 状态的任务
-            let total_time_spent: u64 = filtered_tasks.iter().filter_map(|t| t.time_spent).sum();
-
-            log::info!("Statistics:");
-            log::info!("  Total tasks: {}", total_tasks);
-            log::info!("  Completed tasks: {}", completed_tasks);
-            log::info!("  Aborted tasks: {}", aborted_tasks);
-            log::info!("  In-progress tasks: {}", in_progress_tasks);
-            log::info!(
-                "  Total time spent: {} hours {} minutes",
-                total_time_spent / 3600,
-                (total_time_spent % 3600) / 60
-            );
-        }
+        // 不再在这里显示统计信息，统计信息的显示已移至DisplayManager
 
         Ok(filtered_tasks)
     }
@@ -253,7 +229,7 @@ impl TaskManager {
     }
 
     /// Start working on a task
-    pub fn start_task(&self, task_id: &str) -> Result<()> {
+    pub fn start_task(&self, task_id: &str) -> Result<String> {
         // 检查是否已经有活动任务
         if let Some(active) = active_task::load_active_task(&self.tasks_dir)? {
             let active_task_obj = storage::load_task(&self.tasks_dir, &active.task_id)?;
@@ -282,8 +258,8 @@ impl TaskManager {
         let active = ActiveTask::new(task.id.clone(), now);
         active_task::save_active_task(&self.tasks_dir, &active)?;
 
-        debug!("Started task: {} and saved to active task file", task_id);
-        Ok(())
+        debug!("Started task: {} and saved to active task file", task.id);
+        Ok(task.id)
     }
 
     /// Stop working on a task
@@ -394,7 +370,7 @@ impl TaskManager {
     }
 
     /// Edit task description
-    pub fn edit_task_description(&self, task_id: &str) -> Result<()> {
+    pub fn edit_task_description(&self, task_id: &str) -> Result<String> {
         // Load the task
         let mut task = storage::load_task(&self.tasks_dir, task_id)?;
 
@@ -431,7 +407,7 @@ impl TaskManager {
                 storage::save_task(&self.tasks_dir, &task)?;
             }
 
-            Ok(())
+            Ok(task.id)
         } else {
             Err(anyhow!("Editor exited with non-zero status"))
         }
@@ -446,6 +422,7 @@ impl TaskManager {
         status_filter: Option<TaskStatus>,
         older_than: Option<u32>,
         force: bool,
+        display_manager: &DisplayManager,
     ) -> Result<usize> {
         // Get tasks matching filters
         let tasks = self.list_tasks(
@@ -483,8 +460,8 @@ impl TaskManager {
 
         // Confirm deletion if not forced
         if count > 0 && !force {
-            let message = format!("Are you sure you want to delete {} tasks?", count);
-            if !Confirm::new().with_prompt(message).interact()? {
+            let message = format!("Are you sure to delete {} tasks?", count);
+            if !display_manager.confirm(&message)? {
                 return Ok(0);
             }
         }
@@ -500,7 +477,6 @@ impl TaskManager {
     /// Clone a remote repository
     pub fn clone_repo(&self, url: &str) -> Result<()> {
         GitRepo::clone(&self.tasks_dir, url)?;
-        info!("Successfully cloned from {}", url);
         Ok(())
     }
 

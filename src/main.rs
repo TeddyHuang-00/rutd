@@ -1,4 +1,5 @@
 mod cli;
+mod display;
 mod git;
 mod task;
 
@@ -6,13 +7,17 @@ use std::{env, process::ExitCode};
 
 use clap::Parser;
 use cli::Cli;
-use log::{LevelFilter, debug, error, info, trace, warn};
+use display::DisplayManager;
+use log::{LevelFilter, debug, trace};
 use simple_logger::SimpleLogger;
 use task::TaskManager;
 
 fn main() -> ExitCode {
+    // Parse command line arguments
     let cli = Cli::parse();
+
     // Set up logging
+    // TODO: Log to a file instead of stdout
     SimpleLogger::new()
         .with_level(LevelFilter::Info)
         .with_module_level(
@@ -27,12 +32,15 @@ fn main() -> ExitCode {
         .init()
         .unwrap();
 
-    trace!("Received cli args: {:?}", cli);
+    // Create a display manager
+    let display_manager = DisplayManager::default();
 
     // Build the task manager
     let task_manager = env::var("RUTD_TASKS_DIR")
         .map(|dir| TaskManager::new(&dir))
         .unwrap_or_default();
+
+    trace!("Received cli args: {:?}", cli);
 
     // Handle different commands
     match &cli.command {
@@ -55,13 +63,11 @@ fn main() -> ExitCode {
             // Use TaskManager to add a new task
             if task_manager
                 .add_task(description, *priority, scope.clone(), task_type.clone())
-                .inspect(|id| info!("Added task ID: {}", id))
-                .inspect_err(|e| error!("Failed to save task: {}", e))
-                .is_ok()
+                .inspect(|id| display_manager.show_success(&format!("Added task with ID: {}", id)))
+                .inspect_err(|e| display_manager.show_failure(&format!("Fail to ass task: {}", e)))
+                .is_err()
             {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
+                return ExitCode::FAILURE;
             }
         }
         cli::commands::Commands::List {
@@ -75,31 +81,32 @@ fn main() -> ExitCode {
             stats,
         } => {
             trace!("List tasks");
-            if let Some(p) = priority {
-                debug!("Filter by priority: {}", p);
-            }
-            if let Some(s) = scope {
-                debug!("Filter by scope: {}", s);
-            }
-            if let Some(t) = task_type {
-                debug!("Filter by type: {:?}", t);
-            }
-            if let Some(s) = status {
-                debug!("Filter by status: {}", s);
-            }
-            if let Some(f) = from_date {
-                debug!("Filter by completion date from: {}", f);
-            }
-            if let Some(t) = to_date {
-                debug!("Filter by completion date to: {}", t);
-            }
-            if let Some(f) = fuzzy {
-                debug!("Search using fuzzy match: {}", f);
-            }
+            // TODO: Refactor filter options into dedicated struct, and implement function to log filter options
+            // if let Some(p) = priority {
+            //     display_manager.show_debug("Filter by priority: {}", p);
+            // }
+            // if let Some(s) = scope {
+            //     display_manager.show_debug("Filter by scope: {}", s);
+            // }
+            // if let Some(t) = task_type {
+            //     display_manager.show_debug("Filter by type: {:?}", t);
+            // }
+            // if let Some(s) = status {
+            //     display_manager.show_debug("Filter by status: {}", s);
+            // }
+            // if let Some(f) = from_date {
+            //     display_manager.show_debug("Filter by completion date from: {}", f);
+            // }
+            // if let Some(t) = to_date {
+            //     display_manager.show_debug("Filter by completion date to: {}", t);
+            // }
+            // if let Some(f) = fuzzy {
+            //     display_manager.show_debug("Search using fuzzy match: {}", f);
+            // }
             debug!("Show statistics: {}", stats);
 
             // Use TaskManager to list tasks
-            if let Ok(tasks) = task_manager
+            let Ok(tasks) = task_manager
                 .list_tasks(
                     *priority,
                     scope.as_deref(),
@@ -110,117 +117,100 @@ fn main() -> ExitCode {
                     fuzzy.as_deref(),
                     *stats,
                 )
-                .inspect_err(|e| error!("Error loading task list: {}", e))
-            {
-                // Display the task list if tasks are found
-                if tasks.is_empty() {
-                    info!("No tasks found matching the criteria.");
-                } else {
-                    // TODO: Display tasks in a more user-friendly format such as in tables
-                    for task in tasks {
-                        info!("- ID: {}", task.id);
-                        info!("  Description: {}", task.description);
-                        info!("  Priority: {}", task.priority);
-                        info!("  Status: {}", task.status);
-                        if let Some(sc) = &task.scope {
-                            info!("  Scope: {}", sc);
-                        }
-                        if let Some(tt) = &task.task_type {
-                            info!("  Type: {}", tt);
-                        }
-                        if let Some(ts) = task.time_spent {
-                            let hours = ts / 3600;
-                            let minutes = (ts % 3600) / 60;
-                            let seconds = ts % 60;
-                            info!("  Time spent: {}h {}m {}s", hours, minutes, seconds);
-                        }
-                        if let Some(completed_at) = &task.completed_at {
-                            info!("  Completed at: {}", completed_at);
-                        }
-                    }
-                }
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
+                .inspect_err(|e| {
+                    display_manager.show_failure(&format!("Fail to load tasks: {}", e));
+                })
+            else {
+                return ExitCode::FAILURE;
+            };
+
+            // Check if tasks are empty
+            if tasks.is_empty() {
+                display_manager.show_success("No tasks found");
+                return ExitCode::SUCCESS;
+            }
+
+            // Use DisplayManager to show tasks
+            if let Err(e) = display_manager.show_tasks(&tasks, *stats) {
+                display_manager.show_failure(&format!("Fail to show tasks: {}", e));
+                return ExitCode::FAILURE;
             }
         }
         cli::commands::Commands::Done { id } => {
-            trace!("Mark task {} as completed", id);
+            display_manager.show_failure(&format!("Mark task {} as completed", id));
 
-            // Use TaskManager to mark task as done
+            // Use TaskManager to mark task as completed
             if task_manager
                 .mark_task_done(id)
-                .inspect(|_| info!("Finished task {}", id))
-                .inspect_err(|e| error!("Failed to mark task as finished: {}", e))
-                .is_ok()
+                .inspect(|_| display_manager.show_success(&format!("Task {} marked as done", id)))
+                .inspect_err(|e| {
+                    display_manager.show_failure(&format!("Fail to mark task as done: {}", e))
+                })
+                .is_err()
             {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
+                return ExitCode::FAILURE;
             }
         }
         cli::commands::Commands::Edit { id } => {
-            trace!("Edit task {}", id);
+            display_manager.show_failure(&format!("Edit task {}", id));
 
             // Use TaskManager to edit task description
             if task_manager
                 .edit_task_description(id)
-                .inspect(|_| info!("Updated task {}", id))
-                .inspect_err(|e| error!("Failed to update task: {}", e))
-                .is_ok()
+                .inspect(|id| display_manager.show_success(&format!("Updated task {}", id)))
+                .inspect_err(|e| {
+                    display_manager.show_failure(&format!("Fail to update task: {}", e))
+                })
+                .is_err()
             {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
+                return ExitCode::FAILURE;
             }
         }
         cli::commands::Commands::Start { id } => {
-            trace!("Start task {}", id);
+            display_manager.show_failure(&format!("Start task {}", id));
 
-            // Use TaskManager to start task
+            // Use TaskManager to start a task
             if task_manager
                 .start_task(id)
-                .inspect(|_| info!("Started task {}", id))
-                .inspect_err(|e| error!("Failed to start task: {}", e))
-                .is_ok()
+                .inspect(|id| display_manager.show_success(&format!("Started task {}", id)))
+                .inspect_err(|e| {
+                    display_manager.show_failure(&format!("Fail to start task: {}", e))
+                })
+                .is_err()
             {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
+                return ExitCode::FAILURE;
             }
         }
         cli::commands::Commands::Stop {} => {
             trace!("Stop active task");
 
-            // Use TaskManager to stop task
+            // Use TaskManager to stop the active task
             if task_manager
                 .stop_task()
-                .inspect(|id| info!("Stopped task {}", id))
-                .inspect_err(|e| error!("Failed to stop task: {}", e))
-                .is_ok()
+                .inspect(|id| display_manager.show_success(&format!("Stopped task {}", id)))
+                .inspect_err(|e| display_manager.show_failure(&format!("Fail to stop task: {}", e)))
+                .is_err()
             {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
+                return ExitCode::FAILURE;
             }
         }
         cli::commands::Commands::Abort { id } => {
             if let Some(id) = id {
-                trace!("Abort task {}", id);
+                display_manager.show_failure(&format!("Abort task {}", id));
             } else {
                 trace!("Abort active task");
             }
 
-            // Use TaskManager to abort task
+            // Use TaskManager to abort a task
             if task_manager
                 .abort_task(id)
-                .inspect(|id| info!("Aborted task {}", id))
-                .inspect_err(|e| error!("Failed to abort task: {}", e))
-                .is_ok()
+                .inspect(|id| display_manager.show_success(&format!("Aborted task {}", id)))
+                .inspect_err(|e| {
+                    display_manager.show_failure(&format!("Fail to abort task: {}", e))
+                })
+                .is_err()
             {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
+                return ExitCode::FAILURE;
             }
         }
         cli::commands::Commands::Clean {
@@ -232,40 +222,42 @@ fn main() -> ExitCode {
             force,
         } => {
             trace!("Clean tasks");
-            if let Some(p) = priority {
-                debug!("Filter by priority: {}", p);
-            }
-            if let Some(s) = scope {
-                debug!("Filter by scope: {}", s);
-            }
-            if let Some(t) = task_type {
-                debug!("Filter by type: {:?}", t);
-            }
-            if let Some(s) = status {
-                debug!("Filter by status: {}", s);
-            }
-            if let Some(days) = older_than {
-                debug!("Filter by age: older than {} days", days);
-            }
+            // TODO: Use the same filter options as in the list command
+            // if let Some(p) = priority {
+            //     display_manager.show_debug("Filter by priority: {}", p);
+            // }
+            // if let Some(s) = scope {
+            //     display_manager.show_debug("Filter by scope: {}", s);
+            // }
+            // if let Some(t) = task_type {
+            //     display_manager.show_debug("Filter by type: {:?}", t);
+            // }
+            // if let Some(s) = status {
+            //     display_manager.show_debug("Filter by status: {}", s);
+            // }
+            // if let Some(days) = older_than {
+            //     display_manager.show_debug("Filter by age: older than {} days", days);
+            // }
             debug!("Force clean without confirmation: {}", force);
 
             // Use TaskManager to clean tasks
-            match task_manager.clean_tasks(
-                *priority,
-                scope.as_deref(),
-                task_type.clone(),
-                *status,
-                *older_than,
-                *force,
-            ) {
-                Ok(count) => {
-                    info!("Removed {} tasks", count);
-                    ExitCode::SUCCESS
-                }
-                Err(e) => {
-                    error!("Failed to clean tasks: {}", e);
-                    ExitCode::FAILURE
-                }
+            if task_manager
+                .clean_tasks(
+                    *priority,
+                    scope.as_deref(),
+                    task_type.clone(),
+                    *status,
+                    *older_than,
+                    *force,
+                    &display_manager,
+                )
+                .inspect(|count| display_manager.show_success(&format!("Cleaned {} tasks", count)))
+                .inspect_err(|e| {
+                    display_manager.show_failure(&format!("Fail to clean tasks: {}", e))
+                })
+                .is_err()
+            {
+                return ExitCode::FAILURE;
             }
         }
         cli::commands::Commands::Sync { prefer } => {
@@ -275,30 +267,38 @@ fn main() -> ExitCode {
             // Use TaskManager to sync with remote repository
             if task_manager
                 .sync(*prefer)
-                .inspect(|_| info!("Successfully synced tasks with remote repository"))
-                .inspect_err(|e| error!("Failed to sync tasks: {}", e))
-                .is_ok()
+                .inspect(|_| {
+                    display_manager.show_success("Successfully synced with remote repository")
+                })
+                .inspect_err(|e| {
+                    display_manager.show_failure(&format!("Fail to sync tasks: {}", e))
+                })
+                .is_err()
             {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
+                return ExitCode::FAILURE;
             }
         }
         cli::commands::Commands::Clone { url } => {
             trace!("Clone remote repository");
             debug!("Repository URL: {}", url);
 
-            // Use TaskManager to clone remote repository
+            // Use TaskManager to clone a remote repository
             if task_manager
                 .clone_repo(url)
-                .inspect(|_| info!("Successfully cloned remote repository to tasks directory"))
-                .inspect_err(|e| error!("Failed to clone repository: {}", e))
-                .is_ok()
+                .inspect(|_| {
+                    display_manager
+                        .show_success(&format!("Successfully cloned remote repository: {}", url))
+                })
+                .inspect_err(|e| {
+                    display_manager.show_failure(&format!("Fail to clone repository: {}", e))
+                })
+                .is_err()
             {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
+                return ExitCode::FAILURE;
             }
         }
     }
+
+    // Catch-all for normal exit
+    ExitCode::SUCCESS
 }
