@@ -13,25 +13,25 @@ use chrono::{DateTime, Duration, Utc};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use log::debug;
 pub use model::{Priority, Task, TaskStatus};
-use shellexpand::tilde;
 use uuid::Uuid;
 
 use crate::{
+    config::PathConfig,
     display::DisplayManager,
     git::{MergeStrategy, repo::GitRepo},
     task::active_task::ActiveTask,
 };
 
-const TASKS_DIR: &str = "~/.rutd/tasks";
-
 /// Task Manager
 pub struct TaskManager {
-    tasks_dir: PathBuf,
+    path_config: PathConfig,
 }
 
 impl Default for TaskManager {
     fn default() -> Self {
-        TaskManager::new(tilde(TASKS_DIR).as_ref())
+        TaskManager {
+            path_config: PathConfig::default(),
+        }
     }
 }
 
@@ -39,7 +39,7 @@ impl TaskManager {
     /// Create a new Task Manager
     pub fn new(tasks_dir: &str) -> Self {
         TaskManager {
-            tasks_dir: tasks_dir.into(),
+            path_config: PathConfig::new(tasks_dir),
         }
     }
 
@@ -59,7 +59,7 @@ impl TaskManager {
             scope,
             task_type,
         );
-        storage::save_task(&self.tasks_dir, &task)?;
+        storage::save_task(self.path_config.tasks_dir(), &task)?;
         Ok(id)
     }
 
@@ -75,7 +75,7 @@ impl TaskManager {
         fuzzy_query: Option<&str>,
         show_stats: bool,
     ) -> Result<Vec<Task>> {
-        let tasks = storage::load_all_tasks(&self.tasks_dir)?;
+        let tasks = storage::load_all_tasks(self.path_config.tasks_dir())?;
         let filtered_tasks = tasks
             .into_iter()
             .filter(|task| {
@@ -91,8 +91,6 @@ impl TaskManager {
                 )
             })
             .collect::<Vec<Task>>();
-
-        // 不再在这里显示统计信息，统计信息的显示已移至DisplayManager
 
         Ok(filtered_tasks)
     }
@@ -175,7 +173,7 @@ impl TaskManager {
 
     /// Mark a task as completed
     pub fn mark_task_done(&self, task_id: &str) -> Result<()> {
-        let mut task = storage::load_task(&self.tasks_dir, task_id)?;
+        let mut task = storage::load_task(self.path_config.tasks_dir(), task_id)?;
 
         // Check if the task is already done
         if task.status == TaskStatus::Done {
@@ -183,7 +181,7 @@ impl TaskManager {
         }
 
         // Check if this is the active task
-        let is_active_task = match active_task::load_active_task(&self.tasks_dir)? {
+        let is_active_task = match active_task::load_active_task(self.path_config.root_dir())? {
             Some(active) => {
                 if active.task_id == task_id {
                     // Calculate time spent using the active task record
@@ -212,11 +210,11 @@ impl TaskManager {
         task.completed_at = Some(chrono::Utc::now().to_rfc3339());
 
         // Save the updated task
-        storage::save_task(&self.tasks_dir, &task)?;
+        storage::save_task(self.path_config.tasks_dir(), &task)?;
 
         // If this was the active task, clear the active task record
         if is_active_task {
-            active_task::clear_active_task(&self.tasks_dir)?;
+            active_task::clear_active_task(self.path_config.root_dir())?;
             debug!(
                 "Completed active task: {} and cleared active task file",
                 task_id
@@ -231,8 +229,8 @@ impl TaskManager {
     /// Start working on a task
     pub fn start_task(&self, task_id: &str) -> Result<String> {
         // 检查是否已经有活动任务
-        if let Some(active) = active_task::load_active_task(&self.tasks_dir)? {
-            let active_task_obj = storage::load_task(&self.tasks_dir, &active.task_id)?;
+        if let Some(active) = active_task::load_active_task(self.path_config.root_dir())? {
+            let active_task_obj = storage::load_task(self.path_config.tasks_dir(), &active.task_id)?;
             return Err(anyhow!(
                 "There's already an active task: {} - {}. Stop it first.",
                 active.task_id,
@@ -241,7 +239,7 @@ impl TaskManager {
         }
 
         // 加载任务
-        let task = storage::load_task(&self.tasks_dir, task_id)?;
+        let task = storage::load_task(self.path_config.tasks_dir(), task_id)?;
 
         // 检查任务是否已完成或已中止
         if task.status == TaskStatus::Done {
@@ -256,7 +254,7 @@ impl TaskManager {
 
         // 创建并保存活动任务记录
         let active = ActiveTask::new(task.id.clone(), now);
-        active_task::save_active_task(&self.tasks_dir, &active)?;
+        active_task::save_active_task(self.path_config.root_dir(), &active)?;
 
         debug!("Started task: {} and saved to active task file", task.id);
         Ok(task.id)
@@ -265,13 +263,13 @@ impl TaskManager {
     /// Stop working on a task
     pub fn stop_task(&self) -> Result<String> {
         // Check if there's an active task
-        let Some(active_task_info) = active_task::load_active_task(&self.tasks_dir)? else {
+        let Some(active_task_info) = active_task::load_active_task(self.path_config.root_dir())? else {
             // No active task found
             bail!("No active task found. Task might not be in progress.")
         };
 
         // Load the task
-        let mut task = storage::load_task(&self.tasks_dir, &active_task_info.task_id)?;
+        let mut task = storage::load_task(self.path_config.tasks_dir(), &active_task_info.task_id)?;
 
         // Calculate time spent using the active task record
         let started_time = DateTime::parse_from_rfc3339(&active_task_info.started_at)
@@ -289,10 +287,10 @@ impl TaskManager {
         task.updated_at = Some(chrono::Utc::now().to_rfc3339());
 
         // Save the updated task
-        storage::save_task(&self.tasks_dir, &task)?;
+        storage::save_task(self.path_config.tasks_dir(), &task)?;
 
         // Clear the active task record
-        active_task::clear_active_task(&self.tasks_dir)?;
+        active_task::clear_active_task(self.path_config.root_dir())?;
 
         debug!(
             "Stopped task: {} and cleared active task file",
@@ -307,13 +305,13 @@ impl TaskManager {
             Some(task_id) => task_id.to_owned(),
             None => {
                 // Load the active task if no ID is provided
-                let Some(active_task) = active_task::load_active_task(&self.tasks_dir)? else {
+                let Some(active_task) = active_task::load_active_task(self.path_config.root_dir())? else {
                     bail!("No active task found");
                 };
                 active_task.task_id
             }
         };
-        let mut task = storage::load_task(&self.tasks_dir, &task_id)?;
+        let mut task = storage::load_task(self.path_config.tasks_dir(), &task_id)?;
 
         // Check if the task is already done or aborted
         if task.status == TaskStatus::Done {
@@ -324,9 +322,9 @@ impl TaskManager {
         }
 
         // Check if this is the active task
-        let is_active_task = match active_task::load_active_task(&self.tasks_dir)? {
+        let is_active_task = match active_task::load_active_task(self.path_config.root_dir())? {
             Some(active) => {
-                if active.task_id == *task_id {
+                if active.task_id == task_id {
                     // Calculate time spent using the active task record
                     let started_time = DateTime::parse_from_rfc3339(&active.started_at)
                         .context("Failed to parse started_at time from active task record")?;
@@ -353,11 +351,11 @@ impl TaskManager {
         task.completed_at = Some(chrono::Utc::now().to_rfc3339());
 
         // Save the updated task
-        storage::save_task(&self.tasks_dir, &task)?;
+        storage::save_task(self.path_config.tasks_dir(), &task)?;
 
         // If this was the active task, clear the active task record
         if is_active_task {
-            active_task::clear_active_task(&self.tasks_dir)?;
+            active_task::clear_active_task(self.path_config.root_dir())?;
             debug!(
                 "Aborted active task: {} and cleared active task file",
                 task_id
@@ -372,7 +370,7 @@ impl TaskManager {
     /// Edit task description
     pub fn edit_task_description(&self, task_id: &str) -> Result<String> {
         // Load the task
-        let mut task = storage::load_task(&self.tasks_dir, task_id)?;
+        let mut task = storage::load_task(self.path_config.tasks_dir(), task_id)?;
 
         // Create a temporary file for editing
         let mut temp_file = tempfile::NamedTempFile::new()?;
@@ -404,7 +402,7 @@ impl TaskManager {
             if new_description != task.description {
                 task.description = new_description;
                 task.updated_at = Some(chrono::Utc::now().to_rfc3339());
-                storage::save_task(&self.tasks_dir, &task)?;
+                storage::save_task(self.path_config.tasks_dir(), &task)?;
             }
 
             Ok(task.id)
@@ -468,7 +466,7 @@ impl TaskManager {
 
         // Delete tasks
         for task in tasks {
-            storage::delete_task(&self.tasks_dir, &task.id)?;
+            storage::delete_task(self.path_config.tasks_dir(), &task.id)?;
         }
 
         Ok(count)
@@ -476,13 +474,13 @@ impl TaskManager {
 
     /// Clone a remote repository
     pub fn clone_repo(&self, url: &str) -> Result<()> {
-        GitRepo::clone(&self.tasks_dir, url)?;
+        GitRepo::clone(self.path_config.tasks_dir(), url)?;
         Ok(())
     }
 
     /// Sync with remote repository
     pub fn sync(&self, prefer: MergeStrategy) -> Result<()> {
-        let git_repo = GitRepo::init(&self.tasks_dir)?;
+        let git_repo = GitRepo::init(self.path_config.tasks_dir())?;
         git_repo.sync(prefer)?;
         Ok(())
     }

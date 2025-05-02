@@ -8,8 +8,6 @@ use anyhow::{Context, Result};
 use log::{debug, info, trace};
 use serde::{Deserialize, Serialize};
 
-const ACTIVE_TASK_FILENAME: &str = "active_task.toml";
-
 /// Active Task information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActiveTask {
@@ -29,20 +27,9 @@ impl ActiveTask {
     }
 }
 
-/// Get the path to the active task file
-fn get_active_task_path(root_dir: &Path) -> PathBuf {
-    let mut path = root_dir.to_path_buf();
-    if path.ends_with("tasks") {
-        // Go up one level if we're in the tasks directory
-        path.pop();
-    }
-    path.push(ACTIVE_TASK_FILENAME);
-    path
-}
-
 /// Save the currently active task
 pub fn save_active_task(root_dir: &Path, active_task: &ActiveTask) -> Result<()> {
-    let path = get_active_task_path(root_dir);
+    let path = root_dir.join("active_task.toml");
     debug!("Saving active task to {}", path.display());
 
     // Make sure the directory exists
@@ -62,7 +49,7 @@ pub fn save_active_task(root_dir: &Path, active_task: &ActiveTask) -> Result<()>
 
 /// Load the currently active task, if any
 pub fn load_active_task(root_dir: &Path) -> Result<Option<ActiveTask>> {
-    let path = get_active_task_path(root_dir);
+    let path = root_dir.join("active_task.toml");
     trace!("Checking for active task at {}", path.display());
 
     if !path.exists() {
@@ -87,7 +74,7 @@ pub fn load_active_task(root_dir: &Path) -> Result<Option<ActiveTask>> {
 
 /// Clear the active task
 pub fn clear_active_task(root_dir: &Path) -> Result<()> {
-    let path = get_active_task_path(root_dir);
+    let path = root_dir.join("active_task.toml");
     if !path.exists() {
         debug!("No active task file to clear");
         return Ok(());

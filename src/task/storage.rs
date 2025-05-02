@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     io::{Read, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use anyhow::Result;
@@ -9,7 +9,7 @@ use anyhow::Result;
 use crate::{git::repo::GitRepo, task::model::Task};
 
 /// Save task to TOML file
-pub fn save_task(root_dir: &PathBuf, task: &Task) -> Result<()> {
+pub fn save_task(root_dir: &Path, task: &Task) -> Result<()> {
     // Make sure the tasks directory exists
     fs::create_dir_all(root_dir)?;
 
@@ -17,7 +17,7 @@ pub fn save_task(root_dir: &PathBuf, task: &Task) -> Result<()> {
     let git_repo = GitRepo::init(root_dir)?;
 
     // Use the task's UUID as the filename
-    let file_path = PathBuf::from(&root_dir).join(format!("{}.toml", task.id));
+    let file_path = root_dir.join(format!("{}.toml", task.id));
 
     // Serialize the task to TOML format
     let toml_string = toml::to_string(task)?;
@@ -41,7 +41,7 @@ pub fn save_task(root_dir: &PathBuf, task: &Task) -> Result<()> {
 /// Short IDs are supported, so if the task ID is "1234", it will match
 /// "1234.toml" and "1234-5678.toml", as long as it is enough to uniquely
 /// identify the file.
-pub fn locate_task(root_dir: &PathBuf, task_id: &str) -> Result<PathBuf> {
+pub fn locate_task(root_dir: &Path, task_id: &str) -> Result<PathBuf> {
     // Make sure the directory exists
     if !root_dir.exists() {
         anyhow::bail!("Tasks directory does not exist");
@@ -71,7 +71,7 @@ pub fn locate_task(root_dir: &PathBuf, task_id: &str) -> Result<PathBuf> {
 }
 
 /// Load task from TOML file
-pub fn load_task(root_dir: &PathBuf, task_id: &str) -> Result<Task> {
+pub fn load_task(root_dir: &Path, task_id: &str) -> Result<Task> {
     let file = locate_task(root_dir, task_id)?;
 
     // Read the contents of the file
@@ -86,7 +86,7 @@ pub fn load_task(root_dir: &PathBuf, task_id: &str) -> Result<Task> {
 }
 
 /// Load all tasks
-pub fn load_all_tasks(root_dir: &PathBuf) -> Result<Vec<Task>> {
+pub fn load_all_tasks(root_dir: &Path) -> Result<Vec<Task>> {
     let mut tasks = Vec::new();
 
     // Make sure the directory exists
@@ -114,7 +114,7 @@ pub fn load_all_tasks(root_dir: &PathBuf) -> Result<Vec<Task>> {
 }
 
 /// Delete task file
-pub fn delete_task(root_dir: &PathBuf, task_id: &str) -> Result<()> {
+pub fn delete_task(root_dir: &Path, task_id: &str) -> Result<()> {
     let file = locate_task(root_dir, task_id)?;
     fs::remove_file(file)?;
 

@@ -1,4 +1,5 @@
 mod cli;
+mod config;
 mod display;
 mod git;
 mod task;
@@ -7,6 +8,7 @@ use std::{env, process::ExitCode};
 
 use clap::Parser;
 use cli::Cli;
+use config::PathConfig;
 use display::DisplayManager;
 use log::{LevelFilter, debug, trace};
 use simple_logger::SimpleLogger;
