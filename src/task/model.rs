@@ -34,9 +34,14 @@ impl fmt::Display for Priority {
 /// Task Status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum TaskStatus {
+    /// Pending (alias: t, p, pending)
+    #[value(aliases = ["t", "p", "pending"])]
     Todo,
-    InProgress,
+    /// Finished (alias: d, f, finished)
+    #[value(aliases = ["d", "f", "finished"])]
     Done,
+    /// Cancelled (alias: a, x, c, cancelled)
+    #[value(aliases = ["a", "x", "c", "cancelled"])]
     Aborted,
 }
 
@@ -44,7 +49,6 @@ impl fmt::Display for TaskStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TaskStatus::Todo => write!(f, "Todo"),
-            TaskStatus::InProgress => write!(f, "In Progress"),
             TaskStatus::Done => write!(f, "Done"),
             TaskStatus::Aborted => write!(f, "Aborted"),
         }

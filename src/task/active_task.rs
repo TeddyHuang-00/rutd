@@ -88,22 +88,15 @@ pub fn load_active_task(root_dir: &Path) -> Result<Option<ActiveTask>> {
 }
 
 /// Clear the active task
-pub fn clear_active_task(root_dir: &Path, task_id: &str) -> Result<()> {
+pub fn clear_active_task(root_dir: &Path) -> Result<()> {
     let path = get_active_task_path(root_dir);
     if !path.exists() {
         debug!("No active task file to clear");
         return Ok(());
     }
 
-    // Initialize the Git repository
-    let git_repo = GitRepo::init(root_dir)?;
-
     // Remove the file
     fs::remove_file(&path)?;
-
-    // Commit the change
-    let commit_message = GitRepo::generate_commit_message(task_id, "Clear active task");
-    git_repo.commit_changes(&commit_message)?;
 
     info!("Cleared active task");
     Ok(())

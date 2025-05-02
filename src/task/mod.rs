@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::git::MergeStrategy;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, Duration, Utc};
 use dialoguer::Confirm;
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
@@ -101,10 +101,7 @@ impl TaskManager {
                 .iter()
                 .filter(|t| t.status == TaskStatus::Aborted)
                 .count();
-            let in_progress_tasks = filtered_tasks
-                .iter()
-                .filter(|t| t.status == TaskStatus::InProgress)
-                .count();
+            let in_progress_tasks = 0; // 不再统计 InProgress 状态的任务
             let total_time_spent: u64 = filtered_tasks.iter().filter_map(|t| t.time_spent).sum();
 
             log::info!("Statistics:");
@@ -241,7 +238,7 @@ impl TaskManager {
 
         // If this was the active task, clear the active task record
         if is_active_task {
-            active_task::clear_active_task(&self.tasks_dir, task_id)?;
+            active_task::clear_active_task(&self.tasks_dir)?;
             debug!(
                 "Completed active task: {} and cleared active task file",
                 task_id
@@ -255,9 +252,8 @@ impl TaskManager {
 
     /// Start working on a task
     pub fn start_task(&self, task_id: &str) -> Result<()> {
-        // Check if there's already an active task using the dedicated file
+        // 检查是否已经有活动任务
         if let Some(active) = active_task::load_active_task(&self.tasks_dir)? {
-            // There's already an active task
             let active_task_obj = storage::load_task(&self.tasks_dir, &active.task_id)?;
             return Err(anyhow!(
                 "There's already an active task: {} - {}. Stop it first.",
@@ -266,10 +262,10 @@ impl TaskManager {
             ));
         }
 
-        // Load and update the task
-        let mut task = storage::load_task(&self.tasks_dir, task_id)?;
+        // 加载任务
+        let task = storage::load_task(&self.tasks_dir, task_id)?;
 
-        // Check if task is already completed or aborted
+        // 检查任务是否已完成或已中止
         if task.status == TaskStatus::Done {
             return Err(anyhow!("Cannot start a completed task"));
         }
@@ -277,17 +273,10 @@ impl TaskManager {
             return Err(anyhow!("Cannot start an aborted task"));
         }
 
-        // Get current time
+        // 获取当前时间
         let now = chrono::Utc::now().to_rfc3339();
 
-        // Update task status and timestamp
-        task.status = TaskStatus::InProgress;
-        task.updated_at = Some(now.clone());
-
-        // Save the task
-        storage::save_task(&self.tasks_dir, &task)?;
-
-        // Create and save the active task record
+        // 创建并保存活动任务记录
         let active = ActiveTask::new(task.id.clone(), now);
         active_task::save_active_task(&self.tasks_dir, &active)?;
 
@@ -296,37 +285,15 @@ impl TaskManager {
     }
 
     /// Stop working on a task
-    pub fn stop_task(&self, task_id: &str) -> Result<()> {
-        // Check if this task is actually the active task
-        let active_task_info = match active_task::load_active_task(&self.tasks_dir)? {
-            Some(active) if active.task_id == task_id => {
-                // Proceed with stopping the active task
-                debug!("Found matching active task: {}", active.task_id);
-                active
-            }
-            Some(active) => {
-                // A different task is active
-                return Err(anyhow!(
-                    "Task {} is not the active task. The active task is {}.",
-                    task_id,
-                    active.task_id
-                ));
-            }
-            None => {
-                // No active task is registered
-                return Err(anyhow!(
-                    "No active task found. Task might not be in progress."
-                ));
-            }
+    pub fn stop_task(&self) -> Result<String> {
+        // Check if there's an active task
+        let Some(active_task_info) = active_task::load_active_task(&self.tasks_dir)? else {
+            // No active task found
+            bail!("No active task found. Task might not be in progress.")
         };
 
         // Load the task
-        let mut task = storage::load_task(&self.tasks_dir, task_id)?;
-
-        // Check if the task is in progress (double-check)
-        if task.status != TaskStatus::InProgress {
-            return Err(anyhow!("Task is not in progress"));
-        }
+        let mut task = storage::load_task(&self.tasks_dir, &active_task_info.task_id)?;
 
         // Calculate time spent using the active task record
         let started_time = DateTime::parse_from_rfc3339(&active_task_info.started_at)
@@ -337,39 +304,51 @@ impl TaskManager {
         // Calculate total seconds spent
         let seconds_spent = duration.num_seconds().max(0) as u64;
 
-        // Add to existing time_spent or initialize it
+        // Update task time spent
         task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
 
         // Update task status and timestamps
-        task.status = TaskStatus::Todo; // Return to Todo state
         task.updated_at = Some(chrono::Utc::now().to_rfc3339());
 
         // Save the updated task
         storage::save_task(&self.tasks_dir, &task)?;
 
         // Clear the active task record
-        active_task::clear_active_task(&self.tasks_dir, task_id)?;
+        active_task::clear_active_task(&self.tasks_dir)?;
 
-        debug!("Stopped task: {} and cleared active task file", task_id);
-        Ok(())
+        debug!(
+            "Stopped task: {} and cleared active task file",
+            &active_task_info.task_id
+        );
+        Ok(active_task_info.task_id)
     }
 
     /// Mark a task as aborted
-    pub fn abort_task(&self, task_id: &str) -> Result<()> {
-        let mut task = storage::load_task(&self.tasks_dir, task_id)?;
+    pub fn abort_task(&self, task_id: &Option<String>) -> Result<String> {
+        let task_id = match task_id {
+            Some(task_id) => task_id.to_owned(),
+            None => {
+                // Load the active task if no ID is provided
+                let Some(active_task) = active_task::load_active_task(&self.tasks_dir)? else {
+                    bail!("No active task found");
+                };
+                active_task.task_id
+            }
+        };
+        let mut task = storage::load_task(&self.tasks_dir, &task_id)?;
 
         // Check if the task is already done or aborted
         if task.status == TaskStatus::Done {
-            return Err(anyhow!("Cannot abort a completed task"));
+            bail!("Cannot abort a completed task");
         }
         if task.status == TaskStatus::Aborted {
-            return Err(anyhow!("Task is already aborted"));
+            bail!("Task is already aborted");
         }
 
         // Check if this is the active task
         let is_active_task = match active_task::load_active_task(&self.tasks_dir)? {
             Some(active) => {
-                if active.task_id == task_id {
+                if active.task_id == *task_id {
                     // Calculate time spent using the active task record
                     let started_time = DateTime::parse_from_rfc3339(&active.started_at)
                         .context("Failed to parse started_at time from active task record")?;
@@ -400,7 +379,7 @@ impl TaskManager {
 
         // If this was the active task, clear the active task record
         if is_active_task {
-            active_task::clear_active_task(&self.tasks_dir, task_id)?;
+            active_task::clear_active_task(&self.tasks_dir)?;
             debug!(
                 "Aborted active task: {} and cleared active task file",
                 task_id
@@ -409,7 +388,7 @@ impl TaskManager {
             debug!("Aborted task: {}", task_id);
         }
 
-        Ok(())
+        Ok(task_id)
     }
 
     /// Edit task description

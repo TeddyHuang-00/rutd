@@ -189,13 +189,13 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         }
-        cli::commands::Commands::Stop { id } => {
-            trace!("Stop task {}", id);
+        cli::commands::Commands::Stop {} => {
+            trace!("Stop active task");
 
             // Use TaskManager to stop task
             if task_manager
-                .stop_task(id)
-                .inspect(|_| info!("Stopped task {}", id))
+                .stop_task()
+                .inspect(|id| info!("Stopped task {}", id))
                 .inspect_err(|e| error!("Failed to stop task: {}", e))
                 .is_ok()
             {
@@ -205,12 +205,16 @@ fn main() -> ExitCode {
             }
         }
         cli::commands::Commands::Abort { id } => {
-            trace!("Abort task {}", id);
+            if let Some(id) = id {
+                trace!("Abort task {}", id);
+            } else {
+                trace!("Abort active task");
+            }
 
             // Use TaskManager to abort task
             if task_manager
                 .abort_task(id)
-                .inspect(|_| info!("Aborted task {}", id))
+                .inspect(|id| info!("Aborted task {}", id))
                 .inspect_err(|e| error!("Failed to abort task: {}", e))
                 .is_ok()
             {

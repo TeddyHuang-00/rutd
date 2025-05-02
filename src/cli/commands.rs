@@ -104,19 +104,16 @@ pub enum Commands {
     },
     /// Stop working on a task
     ///
-    /// Pause time tracking for the task without changing its status
+    /// Pause time tracking for the active task
     #[command()]
-    Stop {
-        /// Task ID
-        id: String,
-    },
+    Stop {},
     /// Abort a task
     ///
     /// Mark the task with the specified ID as aborted
     #[command()]
     Abort {
-        /// Task ID
-        id: String,
+        /// Task ID, if not specified, abort the active task
+        id: Option<String>,
     },
     /// Clean tasks
     ///
