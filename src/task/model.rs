@@ -64,6 +64,8 @@ pub struct Task {
     pub updated_at: Option<String>,
     /// Task completion time in ISO format
     pub completed_at: Option<String>,
+    /// Time spent on task in seconds
+    pub time_spent: Option<u64>,
 }
 
 impl Task {
@@ -84,6 +86,7 @@ impl Task {
             created_at: chrono::Utc::now().to_rfc3339(),
             updated_at: None,
             completed_at: None,
+            time_spent: None,
         }
     }
 }
