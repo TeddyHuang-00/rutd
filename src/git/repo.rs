@@ -1,17 +1,14 @@
-use std::env;
-use std::ffi::OsStr;
-use std::os::unix::ffi::OsStrExt;
-use std::path::Path;
+use std::{env, ffi::OsStr, os::unix::ffi::OsStrExt, path::Path};
 
-use crate::git::MergeStrategy;
-use anyhow::Context;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use git2::{
     Cred, CredentialType, ErrorCode, FetchOptions, FileFavor, IndexAddOption, MergeAnalysis,
     MergeOptions, ObjectType, PushOptions, RemoteCallbacks, Repository, Signature,
     build::CheckoutBuilder,
 };
 use log::{debug, error, info, trace, warn};
+
+use crate::git::MergeStrategy;
 
 pub struct GitRepo {
     repo: Repository,

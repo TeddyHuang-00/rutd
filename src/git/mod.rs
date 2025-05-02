@@ -1,7 +1,8 @@
 pub mod repo;
 
-use clap::ValueEnum;
 use std::fmt;
+
+use clap::ValueEnum;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum MergeStrategy {

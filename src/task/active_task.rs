@@ -8,8 +8,6 @@ use anyhow::{Context, Result};
 use log::{debug, info, trace};
 use serde::{Deserialize, Serialize};
 
-use crate::git::repo::GitRepo;
-
 const ACTIVE_TASK_FILENAME: &str = "active_task.toml";
 
 /// Active Task information

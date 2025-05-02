@@ -8,7 +8,6 @@ use std::{
     process::Command,
 };
 
-use crate::git::MergeStrategy;
 use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, Duration, Utc};
 use dialoguer::Confirm;
@@ -18,7 +17,10 @@ pub use model::{Priority, Task, TaskStatus};
 use shellexpand::tilde;
 use uuid::Uuid;
 
-use crate::{git::repo::GitRepo, task::active_task::ActiveTask};
+use crate::{
+    git::{MergeStrategy, repo::GitRepo},
+    task::active_task::ActiveTask,
+};
 
 const TASKS_DIR: &str = "~/.rutd/tasks";
 
