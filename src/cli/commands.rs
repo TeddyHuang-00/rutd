@@ -58,6 +58,22 @@ pub enum Commands {
         /// Filter by status
         #[arg(value_enum, short, long)]
         status: Option<TaskStatus>,
+
+        /// Filter by completion date (from)
+        #[arg(long)]
+        from_date: Option<String>,
+
+        /// Filter by completion date (to)
+        #[arg(long)]
+        to_date: Option<String>,
+
+        /// Enable fuzzy matching for description
+        #[arg(short, long)]
+        fuzzy: Option<String>,
+
+        /// Show statistics (counts, total time spent)
+        #[arg(long)]
+        stats: bool,
     },
     /// Mark task as completed
     ///
@@ -76,4 +92,63 @@ pub enum Commands {
         /// Task ID
         id: String,
     },
+    /// Start working on a task
+    ///
+    /// Mark the task with the specified ID as in progress and start time
+    /// tracking
+    #[command()]
+    Start {
+        /// Task ID
+        id: String,
+    },
+    /// Stop working on a task
+    ///
+    /// Pause time tracking for the task without changing its status
+    #[command()]
+    Stop {
+        /// Task ID
+        id: String,
+    },
+    /// Abort a task
+    ///
+    /// Mark the task with the specified ID as aborted
+    #[command()]
+    Abort {
+        /// Task ID
+        id: String,
+    },
+    /// Clean tasks
+    ///
+    /// Remove tasks based on filters
+    #[command()]
+    Clean {
+        /// Filter by priority
+        #[arg(value_enum, short, long)]
+        priority: Option<Priority>,
+
+        /// Filter by scope (project name)
+        #[arg(short = 'c', long)]
+        scope: Option<String>,
+
+        /// Filter by task type
+        #[arg(short, long)]
+        task_type: Option<String>,
+
+        /// Filter by status
+        #[arg(value_enum, short, long)]
+        status: Option<TaskStatus>,
+
+        /// Filter by completion date (older than n days)
+        #[arg(long)]
+        older_than: Option<u32>,
+
+        /// Confirm deletion without prompting
+        #[arg(short, long)]
+        force: bool,
+    },
+    /// Sync with remote repository
+    ///
+    /// Fetch, pull and push changes to the remote repository
+    #[command()]
+    Sync {},
 }
