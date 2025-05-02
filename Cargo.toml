@@ -11,3 +11,6 @@ git2 = "0.18.1"
 uuid = { version = "1.6.1", features = ["v4"] }
 chrono = "0.4.41"
 strum = { version = "0.27.1", features = ["derive"] }
+anyhow = "1.0.98"
+simple_logger = "5.0.0"
+log = "0.4.27"
