@@ -1,2 +1,2 @@
-// 测试模块入口
-// TODO: 添加单元测试和集成测试
+// Test module
+// TODO: Add unit tests and integration tests
