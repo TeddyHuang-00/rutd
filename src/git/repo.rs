@@ -33,22 +33,18 @@ impl GitRepo {
         };
 
         // Create a new commit
-        match head {
-            Some(ref head_commit) => {
-                self.repo.commit(
-                    Some("HEAD"),
-                    &signature,
-                    &signature,
-                    message,
-                    &tree,
-                    &[head_commit],
-                )?;
-            }
-            None => {
-                self.repo
-                    .commit(Some("HEAD"), &signature, &signature, message, &tree, &[])?;
-            }
-        }
+        let parents = match head {
+            Some(ref commit) => vec![commit],
+            None => vec![],
+        };
+        self.repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            message,
+            &tree,
+            &parents,
+        )?;
 
         Ok(())
     }
