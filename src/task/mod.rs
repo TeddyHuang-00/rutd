@@ -4,7 +4,6 @@ pub mod storage;
 
 use std::{
     io::{Read, Write},
-    path::PathBuf,
     process::Command,
 };
 
@@ -23,16 +22,9 @@ use crate::{
 };
 
 /// Task Manager
+#[derive(Default)]
 pub struct TaskManager {
     path_config: PathConfig,
-}
-
-impl Default for TaskManager {
-    fn default() -> Self {
-        TaskManager {
-            path_config: PathConfig::default(),
-        }
-    }
 }
 
 impl TaskManager {
@@ -228,9 +220,10 @@ impl TaskManager {
 
     /// Start working on a task
     pub fn start_task(&self, task_id: &str) -> Result<String> {
-        // 检查是否已经有活动任务
+        // Check if there is already an active task
         if let Some(active) = active_task::load_active_task(self.path_config.root_dir())? {
-            let active_task_obj = storage::load_task(self.path_config.tasks_dir(), &active.task_id)?;
+            let active_task_obj =
+                storage::load_task(self.path_config.tasks_dir(), &active.task_id)?;
             return Err(anyhow!(
                 "There's already an active task: {} - {}. Stop it first.",
                 active.task_id,
@@ -238,10 +231,10 @@ impl TaskManager {
             ));
         }
 
-        // 加载任务
+        // Load task
         let task = storage::load_task(self.path_config.tasks_dir(), task_id)?;
 
-        // 检查任务是否已完成或已中止
+        // Check if task is already completed or aborted
         if task.status == TaskStatus::Done {
             return Err(anyhow!("Cannot start a completed task"));
         }
@@ -249,10 +242,10 @@ impl TaskManager {
             return Err(anyhow!("Cannot start an aborted task"));
         }
 
-        // 获取当前时间
+        // Get current time
         let now = chrono::Utc::now().to_rfc3339();
 
-        // 创建并保存活动任务记录
+        // Create and save active task record
         let active = ActiveTask::new(task.id.clone(), now);
         active_task::save_active_task(self.path_config.root_dir(), &active)?;
 
@@ -263,7 +256,8 @@ impl TaskManager {
     /// Stop working on a task
     pub fn stop_task(&self) -> Result<String> {
         // Check if there's an active task
-        let Some(active_task_info) = active_task::load_active_task(self.path_config.root_dir())? else {
+        let Some(active_task_info) = active_task::load_active_task(self.path_config.root_dir())?
+        else {
             // No active task found
             bail!("No active task found. Task might not be in progress.")
         };
@@ -305,7 +299,8 @@ impl TaskManager {
             Some(task_id) => task_id.to_owned(),
             None => {
                 // Load the active task if no ID is provided
-                let Some(active_task) = active_task::load_active_task(self.path_config.root_dir())? else {
+                let Some(active_task) = active_task::load_active_task(self.path_config.root_dir())?
+                else {
                     bail!("No active task found");
                 };
                 active_task.task_id

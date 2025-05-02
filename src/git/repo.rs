@@ -102,7 +102,7 @@ impl GitRepo {
 
     /// Sync with remote repository (fetch, pull, push)
     ///
-    /// - prefer: 指定在合并冲突时的解决策略
+    /// - prefer: Specifies the resolution strategy for merge conflicts
     pub fn sync(&self, prefer: MergeStrategy) -> Result<()> {
         // Check if we have any remotes
         let remotes = self.repo.remotes()?;
