@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
 
-use crate::git::MergeStrategy;
-use crate::task::{Priority, TaskStatus};
+use crate::{
+    git::MergeStrategy,
+    task::{Priority, TaskStatus},
+};
 
 /// RuTD - A Rust based To-Do list manager for your rushing to-dos
 #[derive(Parser, Debug)]
@@ -21,7 +23,7 @@ pub enum Commands {
     ///
     /// Add a new task to the to-do list, supporting specification of
     /// description, priority, scope, and type
-    #[command()]
+    #[command(visible_aliases = ["a"])]
     Add {
         /// Task description
         description: String,
@@ -42,7 +44,7 @@ pub enum Commands {
     ///
     /// List tasks in the to-do list, supporting filtering by priority, scope,
     /// type, and status
-    #[command()]
+    #[command(visible_aliases = ["l"])]
     List {
         /// Filter by priority
         #[arg(value_enum, short, long)]
@@ -79,7 +81,7 @@ pub enum Commands {
     /// Mark task as completed
     ///
     /// Mark the task with the specified ID as completed
-    #[command()]
+    #[command(visible_aliases = ["d", "f"])]
     Done {
         /// Task ID
         id: String,
@@ -88,7 +90,7 @@ pub enum Commands {
     ///
     /// Edit the description of the task with the specified ID using the default
     /// editor
-    #[command()]
+    #[command(visible_aliases = ["e"])]
     Edit {
         /// Task ID
         id: String,
@@ -97,20 +99,20 @@ pub enum Commands {
     ///
     /// Mark the task with the specified ID as in progress and start time
     /// tracking
-    #[command()]
+    #[command(visible_aliases = ["s"])]
     Start {
         /// Task ID
         id: String,
     },
-    /// Stop working on a task
+    /// Stop working on active task
     ///
     /// Pause time tracking for the active task
-    #[command()]
+    #[command(visible_aliases = ["p"])]
     Stop {},
     /// Abort a task
     ///
     /// Mark the task with the specified ID as aborted
-    #[command()]
+    #[command(visible_aliases = ["x", "c"])]
     Abort {
         /// Task ID, if not specified, abort the active task
         id: Option<String>,
@@ -118,7 +120,7 @@ pub enum Commands {
     /// Clean tasks
     ///
     /// Remove tasks based on filters
-    #[command()]
+    #[command(visible_aliases = ["purge", "delete", "rm"])]
     Clean {
         /// Filter by priority
         #[arg(value_enum, short, long)]
@@ -147,7 +149,7 @@ pub enum Commands {
     /// Sync with remote repository
     ///
     /// Fetch, pull and push changes to the remote repository
-    #[command()]
+    #[command(visible_aliases = ["y", "u"])]
     Sync {
         /// Conflict resolution preference when merging
         #[arg(short, long, value_enum, default_value_t = MergeStrategy::None)]
@@ -156,7 +158,7 @@ pub enum Commands {
     /// Clone a remote repository
     ///
     /// Clone a remote repository to the local tasks directory
-    #[command()]
+    #[command(visible_aliases = ["pull"])]
     Clone {
         /// Remote repository URL to clone
         url: String,
