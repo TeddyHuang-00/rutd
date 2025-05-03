@@ -1,0 +1,299 @@
+use anyhow::{Context, Result};
+use chrono::{DateTime, Datelike, Days, Local, Months, NaiveDate, TimeZone, Weekday};
+#[cfg(feature = "cli")]
+use clap::Args;
+
+use super::{Priority, TaskStatus};
+
+const DATE_LONG_HELP: &str = "
+Date range format: [<date>]..[<date>] or <date>
+
+<date> format:
+1. Absolute: YYYY/MM/DD, YYYY/MM, YYYY.
+2. Relative: [<num>]d, [<num>]w, [<num>]m, [<num>]y; d for days, w for
+   weeks, m for months, y for years. <num> defaults to 0, meaning the
+   current cycle.
+
+Relative format also supports:
+1. '+<date>': exact offset from the current date. Default behavior is to
+   round the date to the beginning of the cycle if used as start or the
+   end of the cycle if used as end.
+2. !!!WIP!!! Combinations: e.g., '5d3w', '+1m2d', etc. The last date
+   unit is used to determine the cycle for rounding in non-exact mode.
+   NOTE: This is WIP, not yet available.";
+/// Filter options for task queries
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "cli", derive(Args))]
+pub struct FilterOptions {
+    /// Filter by priority
+    #[cfg_attr(feature = "cli", arg(value_enum, short, long))]
+    pub priority: Option<Priority>,
+
+    // TODO: Add completion candidate based on configuration and present scopes
+    /// Filter by scope (project name)
+    #[cfg_attr(feature = "cli", arg(short = 'c', long))]
+    pub scope: Option<String>,
+
+    // TODO: Add completion candidate based on configuration and present task types
+    /// Filter by type
+    #[cfg_attr(feature = "cli", arg(short, long, value_name = "type"))]
+    pub task_type: Option<String>,
+
+    /// Filter by status
+    #[cfg_attr(feature = "cli", arg(value_enum, short, long))]
+    pub status: Option<TaskStatus>,
+
+    /// Filter by creation date range
+    #[cfg_attr(feature = "cli", arg(
+        short = 'a', long,
+        value_parser = parse_date_range,
+        allow_hyphen_values = true,
+        long_help = DATE_LONG_HELP
+    ))]
+    pub creation_time: Option<DateRange>,
+
+    /// Filter by last update date range
+    #[cfg_attr(feature = "cli", arg(
+        short, long,
+        value_parser = parse_date_range,
+        allow_hyphen_values = true,
+        long_help = DATE_LONG_HELP
+    ))]
+    pub update_time: Option<DateRange>,
+
+    /// Filter by completion date range, including cancelled tasks
+    #[cfg_attr(feature = "cli", arg(
+        short = 'd', long,
+        value_parser = parse_date_range,
+        allow_hyphen_values = true,
+        long_help = DATE_LONG_HELP
+    ))]
+    pub completion_time: Option<DateRange>,
+
+    /// Enable fuzzy matching for description
+    #[cfg_attr(feature = "cli", arg(short, long))]
+    pub fuzzy: Option<String>,
+}
+
+/// DateRange struct for robust date parsing
+#[derive(Debug, Clone, Default)]
+pub struct DateRange {
+    /// Start date limit (None if no lower bound)
+    pub from: Option<DateTime<Local>>,
+    /// End date limit (None if no upper bound)
+    pub to: Option<DateTime<Local>>,
+}
+
+impl TryFrom<&str> for DateRange {
+    type Error = anyhow::Error;
+
+    fn try_from(range_str: &str) -> Result<Self> {
+        let parts: Vec<&str> = range_str.split('-').collect();
+        let now = Local::now();
+        match *parts.as_slice() {
+            // Single date - treat as exact day range
+            [start] => {
+                let from = Some(parse_date(start, now, false)?);
+                let to = Some(parse_date(start, now, true)?);
+                Ok(DateRange { from, to })
+            }
+            // Start-end range
+            [start, end] => {
+                let from = if start.is_empty() {
+                    None
+                } else {
+                    Some(parse_date(start, now, false)?)
+                };
+                let to = if end.is_empty() {
+                    None
+                } else {
+                    Some(parse_date(end, now, true)?)
+                };
+                Ok(DateRange { from, to })
+            }
+            _ => anyhow::bail!("Invalid date range format: {}", range_str),
+        }
+    }
+}
+
+/// Try parsing the date string from the current date
+fn parse_date<Tz: TimeZone>(
+    date_str: &str,
+    now: DateTime<Tz>,
+    is_end: bool,
+) -> Result<DateTime<Tz>> {
+    // Trim whitespace
+    let date_str = date_str.trim();
+
+    if date_str.is_empty() {
+        anyhow::bail!("Empty date string")
+    }
+
+    // TODO: Add config option to specify the first day of the week
+    // Check if is a relative date, e.g., 5d, 3w, 2m, 1y, d, w, m, y
+    if "dwmy".contains(date_str.chars().last().unwrap()) {
+        return parse_relative_date(date_str, now, is_end);
+    }
+
+    // Otherwise, treat it as an absolute date
+    parse_absolute_date(date_str, now, is_end)
+}
+
+fn parse_absolute_date<Tz: TimeZone>(
+    date_str: &str,
+    now: DateTime<Tz>,
+    is_end: bool,
+) -> Result<DateTime<Tz>> {
+    // Check if the date string is a absolute date in the format YYYY/MM/DD or
+    // YYYY/MM or YYYY
+    let date_parts = date_str.split('/').collect::<Vec<_>>();
+    let date = match *date_parts.as_slice() {
+        // YYYY/MM/DD format
+        [year, month, day] => {
+            let Ok(year) = year.parse::<i32>() else {
+                anyhow::bail!("Invalid year in date string: {}", date_str);
+            };
+            let Ok(month) = month.parse::<u32>() else {
+                anyhow::bail!("Invalid month in date string: {}", date_str);
+            };
+            let Ok(day) = day.parse::<u32>() else {
+                anyhow::bail!("Invalid day in date string: {}", date_str);
+            };
+            let mut date = NaiveDate::from_ymd_opt(year, month, day)
+                .context(format!(
+                    "Date does not exist: {year:04}/{month:02}/{day:02}"
+                ))?
+                .and_hms_opt(0, 0, 0)
+                .unwrap();
+            if is_end {
+                date = date.checked_add_days(Days::new(1)).unwrap()
+            }
+            date
+        }
+        [year, month] => {
+            // YYYY/MM format
+            let Ok(year) = year.parse::<i32>() else {
+                anyhow::bail!("Invalid year in date string: {}", date_str);
+            };
+            let Ok(month) = month.parse::<u32>() else {
+                anyhow::bail!("Invalid month in date string: {}", date_str);
+            };
+            let mut date = NaiveDate::from_ymd_opt(year, month, 1)
+                .context(format!(
+                    "Date does not exist: {:04}/{:02}/{:02}",
+                    year, month, 1
+                ))?
+                .and_hms_opt(0, 0, 0)
+                .unwrap();
+            if is_end {
+                date = date.checked_add_months(Months::new(1)).unwrap()
+            }
+            date
+        }
+        [year] => {
+            // YYYY format
+            let Ok(year) = year.parse::<i32>() else {
+                anyhow::bail!("Invalid year in date string: {}", date_str);
+            };
+            let mut date = NaiveDate::from_ymd_opt(year, 1, 1)
+                .context(format!("Date does not exist: {year:04}/01/01"))?
+                .and_hms_opt(0, 0, 0)
+                .unwrap();
+            if is_end {
+                date = date.checked_add_months(Months::new(12)).unwrap()
+            }
+            date
+        }
+        _ => anyhow::bail!("Invalid date format: {}", date_str),
+    };
+
+    Ok(DateTime::<Tz>::from_naive_utc_and_offset(
+        date,
+        now.offset().to_owned(),
+    ))
+}
+
+// TODO: Support relative date with multiple units, e.g., 5d3w, +1m2d, etc.
+fn parse_relative_date<Tz: TimeZone>(
+    date_str: &str,
+    now: DateTime<Tz>,
+    is_end: bool,
+) -> Result<DateTime<Tz>> {
+    // Exact delta by using '+'
+    let unit = date_str.chars().last().unwrap();
+    let exact = date_str.starts_with('+');
+    let date_str = &date_str[exact as usize..date_str.len() - 1];
+
+    // Certain number of days/weeks/months/years
+    let num = if date_str.is_empty() {
+        // Writing 'd', 'w', 'm', or 'y' means 0 days/weeks/months/years,
+        // meaning the current cycle
+        0
+    } else {
+        match date_str.parse::<i64>() {
+            // If a number is specified, it must be positive
+            Ok(num) if num.is_positive() => num as u32,
+            _ => anyhow::bail!("Invalid number in date string: {}", date_str),
+        }
+    };
+    let date = match unit {
+        'd' => now.clone().checked_sub_days(Days::new(num.into())),
+        'w' => now.clone().checked_sub_days(Days::new((num * 7).into())),
+        'm' => now.clone().checked_sub_months(Months::new(num)),
+        'y' => now.clone().checked_sub_months(Months::new(num * 12)),
+        _ => unreachable!(),
+    }
+    .unwrap();
+    let mut date = if !exact {
+        match unit {
+            // Clear time part
+            'd' => date.date_naive().and_hms_opt(0, 0, 0).unwrap(),
+            // Set to the first day of the week and clear time part
+            'w' => {
+                let first_day_of_week = date.date_naive().week(Weekday::Mon);
+                first_day_of_week.first_day().and_hms_opt(0, 0, 0).unwrap()
+            }
+            // Set to the first day of the month and clear time part
+            'm' => date
+                .date_naive()
+                .with_day(1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+            // Set to the first day of the year and clear time part
+            'y' => date
+                .date_naive()
+                .with_month(1)
+                .unwrap()
+                .with_day(1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+            _ => unreachable!(),
+        }
+    } else {
+        date.naive_local()
+    };
+
+    // Adjust the end date to the last moment of the cycle if not exact
+    if is_end && !exact {
+        date = match unit {
+            'd' => date.checked_add_days(Days::new(1)),
+            'w' => date.checked_add_days(Days::new(7)),
+            'm' => date.checked_add_months(Months::new(1)),
+            'y' => date.checked_add_months(Months::new(12)),
+            _ => unreachable!(),
+        }
+        .unwrap();
+    }
+
+    Ok(DateTime::<Tz>::from_naive_utc_and_offset(
+        date,
+        now.offset().to_owned(),
+    ))
+}
+
+// Parse date range from string for clap
+fn parse_date_range(range_str: &str) -> Result<DateRange> {
+    DateRange::try_from(range_str)
+}

@@ -1,4 +1,5 @@
 pub mod active_task;
+pub mod filter;
 pub mod model;
 pub mod storage;
 
@@ -9,13 +10,13 @@ use std::{
 
 use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, Local};
+pub use filter::{DateRange, FilterOptions};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use log::debug;
-use model::DateRange;
-pub use model::{FilterOptions, Priority, Task, TaskStatus};
+pub use model::{Priority, Task, TaskStatus};
 use uuid::Uuid;
 
-use crate::{
+use super::{
     config::{GitConfig, PathConfig},
     display::Display,
     git::{MergeStrategy, repo::GitRepo},
@@ -29,46 +30,8 @@ pub struct TaskManager {
     git_config: GitConfig,
 }
 
+// Helper functions for TaskManager
 impl TaskManager {
-    /// Create a new Task Manager
-    pub fn new(path_config: PathConfig, git_config: GitConfig) -> Self {
-        TaskManager {
-            path_config,
-            git_config,
-        }
-    }
-
-    /// Add a new task
-    pub fn add_task(
-        &self,
-        description: &str,
-        priority: Priority,
-        scope: Option<String>,
-        task_type: Option<String>,
-    ) -> Result<String> {
-        let id = Uuid::new_v4().to_string();
-        let task = Task::new(
-            id.clone(),
-            description.to_string(),
-            priority,
-            scope,
-            task_type,
-        );
-        storage::save_task(&self.path_config.task_dir(), &task)?;
-        Ok(id)
-    }
-
-    /// List tasks with filtering support
-    pub fn list_tasks(&self, filter_options: &FilterOptions) -> Result<Vec<Task>> {
-        let tasks = storage::load_all_tasks(&self.path_config.task_dir())?;
-        let filtered_tasks = tasks
-            .into_iter()
-            .filter(|task| Self::matches_filters(task, filter_options))
-            .collect::<Vec<Task>>();
-
-        Ok(filtered_tasks)
-    }
-
     /// Check if time fits in the date range
     fn is_time_in_range(time: &str, range: &DateRange) -> bool {
         let time = DateTime::parse_from_rfc3339(time)
@@ -144,6 +107,48 @@ impl TaskManager {
         }
 
         true
+    }
+}
+
+// Public methods for TaskManager
+impl TaskManager {
+    /// Create a new Task Manager
+    pub fn new(path_config: PathConfig, git_config: GitConfig) -> Self {
+        TaskManager {
+            path_config,
+            git_config,
+        }
+    }
+
+    /// Add a new task
+    pub fn add_task(
+        &self,
+        description: &str,
+        priority: Priority,
+        scope: Option<String>,
+        task_type: Option<String>,
+    ) -> Result<String> {
+        let id = Uuid::new_v4().to_string();
+        let task = Task::new(
+            id.clone(),
+            description.to_string(),
+            priority,
+            scope,
+            task_type,
+        );
+        storage::save_task(&self.path_config.task_dir(), &task)?;
+        Ok(id)
+    }
+
+    /// List tasks with filtering support
+    pub fn list_tasks(&self, filter_options: &FilterOptions) -> Result<Vec<Task>> {
+        let tasks = storage::load_all_tasks(&self.path_config.task_dir())?;
+        let filtered_tasks = tasks
+            .into_iter()
+            .filter(|task| Self::matches_filters(task, filter_options))
+            .collect::<Vec<Task>>();
+
+        Ok(filtered_tasks)
     }
 
     /// Mark a task as completed

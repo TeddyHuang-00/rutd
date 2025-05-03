@@ -33,19 +33,15 @@ pub fn save_task(root_dir: &Path, task: &Task) -> Result<()> {
     Ok(())
 }
 
-/// Locate task file by ID
+/// Locate all potential task files by ID
 ///
-/// The function searches for a task file in the specified directory that
-/// matches the given task ID.
+/// The function searches for task files in the specified directory that
+/// match the given task ID.
 ///
 /// Short IDs are supported, so if the task ID is "1234", it will match
 /// "1234.toml" and "1234-5678.toml", as long as it is enough to uniquely
 /// identify the file.
-pub fn locate_task(root_dir: &Path, task_id: &str) -> Result<PathBuf> {
-    // Make sure the directory exists
-    if !root_dir.exists() {
-        anyhow::bail!("Tasks directory does not exist");
-    }
+pub fn locate_all_tasks(root_dir: &Path, task_id: &str) -> Result<Vec<PathBuf>> {
     let mut matching_files = Vec::new();
 
     // Iterate over all TOML files in the directory
@@ -63,8 +59,25 @@ pub fn locate_task(root_dir: &Path, task_id: &str) -> Result<PathBuf> {
         }
     }
 
+    Ok(matching_files)
+}
+
+/// Locate task file by ID
+///
+/// This function utilizes the `locate_all_tasks` function to find all potential
+/// task files. It will only return a single file if it is unique. If multiple
+/// files are found, or if no files are found, an error will be returned.
+pub fn locate_task(root_dir: &Path, task_id: &str) -> Result<PathBuf> {
+    // Make sure the directory exists
+    // Make sure the directory exists
+    if !root_dir.exists() {
+        anyhow::bail!("Tasks directory does not exist");
+    }
+
+    let matching_files = locate_all_tasks(root_dir, task_id)?;
+
     match matching_files.len() {
-        1 => Ok(matching_files.pop().unwrap()),
+        1 => Ok(matching_files[0].to_owned()),
         0 => anyhow::bail!("No task found with ID starting with {}", task_id),
         _ => anyhow::bail!("Multiple tasks found with ID starting with {}", task_id),
     }
