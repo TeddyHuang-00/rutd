@@ -5,15 +5,17 @@ pub const DEFAULT_MAX_LOG_HISTORY: usize = 100;
 
 /// General configuration settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GeneralConfig {
+pub struct LogConfig {
     /// Maximum number of lines to keep in log file
-    pub max_log_history: Option<usize>,
+    ///
+    /// Set to 0 to disable log rotation
+    pub max_history: usize,
 }
 
-impl Default for GeneralConfig {
+impl Default for LogConfig {
     fn default() -> Self {
         Self {
-            max_log_history: Some(DEFAULT_MAX_LOG_HISTORY),
+            max_history: DEFAULT_MAX_LOG_HISTORY,
         }
     }
 }

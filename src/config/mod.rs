@@ -1,5 +1,5 @@
-pub mod general;
 pub mod git;
+pub mod logging;
 pub mod path;
 
 use anyhow::Result;
@@ -7,9 +7,9 @@ use figment::{
     Figment,
     providers::{Env, Format, Serialized, Toml},
 };
-pub use general::GeneralConfig;
 pub use git::GitConfig;
 use log::info;
+pub use logging::LogConfig;
 pub use path::PathConfig;
 use serde::{Deserialize, Serialize};
 use shellexpand::tilde;
@@ -17,12 +17,12 @@ use shellexpand::tilde;
 /// Main configuration structure that holds all configuration options
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
-    /// General configuration
-    pub general: GeneralConfig,
     /// Path configuration
     pub path: PathConfig,
     /// Git configuration
     pub git: GitConfig,
+    /// Log configuration
+    pub log: LogConfig,
 }
 
 impl Config {

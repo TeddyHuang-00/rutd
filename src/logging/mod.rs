@@ -179,7 +179,7 @@ impl Log for FileLogger {
 pub fn init_logger(
     verbose_level: u8,
     log_file_path: Option<PathBuf>,
-    max_history: Option<usize>,
+    max_history: usize,
 ) -> Result<(), String> {
     // Set up logging
     let log_level = match verbose_level {
@@ -195,7 +195,11 @@ pub fn init_logger(
             LevelFilter::Info,
             log_level,
             Some(log_file_path),
-            max_history,
+            if max_history > 0 {
+                Some(max_history)
+            } else {
+                None
+            },
         )
         .init()
         .map_err(|e| format!("Failed to initialize logger: {}", e))

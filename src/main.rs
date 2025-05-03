@@ -29,7 +29,7 @@ fn main() -> ExitCode {
     if let Err(e) = logging::init_logger(
         cli.verbose,
         config.path.log_file(),
-        config.general.max_log_history,
+        config.log.max_history,
     ) {
         eprintln!("{}", e);
         return ExitCode::FAILURE;
