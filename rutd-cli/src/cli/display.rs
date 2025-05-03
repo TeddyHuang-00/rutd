@@ -1,7 +1,7 @@
 use anyhow::Result;
 use colored::Colorize;
 use comfy_table::{Cell, CellAlignment, ContentArrangement, Row, Table};
-use dialoguer::Confirm;
+use dialoguer::{Confirm, Editor};
 use rutd_core::{
     display::Display,
     task::{Priority, Task, TaskStatus},
@@ -39,11 +39,9 @@ impl Display for DisplayManager {
         let confirmed = Confirm::new().with_prompt(message).interact()?;
         Ok(confirmed)
     }
-    fn edit(&self, message: &str) -> Result<String> {
-        let input = dialoguer::Editor::new()
-            .edit(message)?
-            .ok_or(anyhow::anyhow!("Failed to get input from editor"))?;
-        Ok(input)
+    fn edit(&self, message: &str) -> Result<Option<String>> {
+        // FIXME: Handle cases when EDITOR is not set
+        Ok(Editor::new().edit(message)?)
     }
     fn show_success(&self, message: &str) {
         println!("{} {}", "✓".green().bold(), message.green());

@@ -109,7 +109,7 @@ pub fn app() -> ExitCode {
 
             // Use TaskManager to edit task description
             if task_manager
-                .edit_task_description(id)
+                .edit_task_description(id, &display_manager)
                 .inspect(|id| display_manager.show_success(&format!("Updated task {id}")))
                 .inspect_err(|e| display_manager.show_failure(&format!("Fail to update task: {e}")))
                 .is_err()
