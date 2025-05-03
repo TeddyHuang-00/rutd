@@ -13,7 +13,7 @@ pub struct Cli {
     pub command: Commands,
 
     /// Verbosity level
-    #[arg(short, long, action = clap::ArgAction::Count)]
+    #[arg(short, long, action = clap::ArgAction::Count, global = true)]
     pub verbose: u8,
 }
 
