@@ -1,6 +1,6 @@
 // TODO: This module will be implemented in the future to provide a text-based
 // user interface for rutd
-
+#[allow(dead_code)]
 pub mod app {
     use anyhow::Result;
     use rutd_core::TaskManager;
