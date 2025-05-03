@@ -15,8 +15,8 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-rutd-cli = { path = "rutd-cli", version = "*" }
-rutd-tui = { path = "rutd-tui", version = "*" }
+rutd-cli = { path = "rutd-cli", version = "0.2.1-rc.1" }
+rutd-tui = { path = "rutd-tui", version = "0.2.1-rc.1" }
 
 [workspace.package]
 version = "0.2.1-rc.1"

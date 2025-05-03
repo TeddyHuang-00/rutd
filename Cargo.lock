@@ -961,7 +961,7 @@ checksum = "eded382c5f5f786b989652c49544c4877d9f015cc22e145a5ea8ea66c2921cd2"
 
 [[package]]
 name = "rutd"
-version = "0.2.0"
+version = "0.2.1-rc.1"
 dependencies = [
  "rutd-cli",
  "rutd-tui",
@@ -969,7 +969,7 @@ dependencies = [
 
 [[package]]
 name = "rutd-cli"
-version = "0.2.0"
+version = "0.2.1-rc.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -985,7 +985,7 @@ dependencies = [
 
 [[package]]
 name = "rutd-core"
-version = "0.2.0"
+version = "0.2.1-rc.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1004,7 +1004,7 @@ dependencies = [
 
 [[package]]
 name = "rutd-tui"
-version = "0.2.0"
+version = "0.2.1-rc.1"
 dependencies = [
  "anyhow",
  "log",
