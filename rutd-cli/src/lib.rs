@@ -2,12 +2,17 @@ pub mod cli;
 
 use std::process::ExitCode;
 
-use clap::Parser;
-pub use cli::{Cli, Commands, DisplayManager};
+use clap::{CommandFactory, Parser};
+use clap_complete::CompleteEnv;
+use cli::{Cli, Commands, DisplayManager};
 use log::{debug, trace};
 use rutd_core::{Config, Display, TaskManager};
 
 pub fn app() -> ExitCode {
+    // Check if we're being called for completion generation
+    // Pass the factory function `cli_factory`
+    CompleteEnv::with_factory(Cli::command).complete();
+
     // Parse command line arguments
     let cli = Cli::parse();
 
