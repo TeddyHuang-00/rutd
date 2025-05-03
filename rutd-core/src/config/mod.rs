@@ -1,6 +1,7 @@
 pub mod git;
 pub mod logging;
 pub mod path;
+pub mod task;
 
 use anyhow::Result;
 use figment::{
@@ -13,6 +14,7 @@ pub use logging::LogConfig;
 pub use path::PathConfig;
 use serde::{Deserialize, Serialize};
 use shellexpand::tilde;
+pub use task::TaskConfig;
 
 /// Main configuration structure that holds all configuration options
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -23,6 +25,8 @@ pub struct Config {
     pub git: GitConfig,
     /// Log configuration
     pub log: LogConfig,
+    /// Task configuration
+    pub task: TaskConfig,
 }
 
 impl Config {
