@@ -14,10 +14,14 @@ rutd-core = { path = "../rutd-core", features = [
 ], version = "0.2.2-rc.1" }
 anyhow.workspace = true
 clap.workspace = true
-clap_complete.workspace = true
+clap_complete = { workspace = true, features = ["unstable-dynamic"] }
 colored.workspace = true
 comfy-table.workspace = true
 dialoguer.workspace = true
 fuzzy-matcher.workspace = true
 log.workspace = true
 simple_logger.workspace = true
+
+[features]
+default = []
+debug = ["clap_complete/debug"]
