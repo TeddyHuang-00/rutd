@@ -1,4 +1,5 @@
 use anyhow::Result;
+use colored::Colorize;
 use comfy_table::{Cell, CellAlignment, ContentArrangement, Row, Table};
 use dialoguer::Confirm;
 
@@ -45,8 +46,9 @@ impl DisplayManager {
     /// Display a success message
     pub fn show_success(&self, message: &str) {
         match self.mode {
-            // TODO: Replace with a proper success message, instead of logging
-            DisplayMode::Cli => log::info!("{}", message),
+            DisplayMode::Cli => {
+                println!("{} {}", "✓".green().bold(), message.green());
+            }
             // TODO: Implement TUI mode
             DisplayMode::Tui => unimplemented!(),
         }
@@ -55,8 +57,9 @@ impl DisplayManager {
     /// Display a failure message
     pub fn show_failure(&self, message: &str) {
         match self.mode {
-            // TODO: Replace with a proper failure message, instead of logging
-            DisplayMode::Cli => log::error!("{}", message),
+            DisplayMode::Cli => {
+                eprintln!("{} {}", "✗".red().bold(), message.red());
+            }
             // TODO: Implement TUI mode
             DisplayMode::Tui => unimplemented!(),
         }
