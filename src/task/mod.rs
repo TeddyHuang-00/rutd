@@ -174,7 +174,7 @@ impl TaskManager {
         }
 
         // Check if this is the active task
-        let is_active_task = match active_task::load_active_task(&self.path_config.root_dir())? {
+        let is_active_task = match active_task::load_active_task(&self.path_config.active_task_file())? {
             Some(active) => {
                 if active.task_id == task_id {
                     // Calculate time spent using the active task record
@@ -207,7 +207,7 @@ impl TaskManager {
 
         // If this was the active task, clear the active task record
         if is_active_task {
-            active_task::clear_active_task(&self.path_config.root_dir())?;
+            active_task::clear_active_task(&self.path_config.active_task_file())?;
             debug!(
                 "Completed active task: {} and cleared active task file",
                 task_id
@@ -222,7 +222,7 @@ impl TaskManager {
     /// Start working on a task
     pub fn start_task(&self, task_id: &str) -> Result<String> {
         // Check if there is already an active task
-        if let Some(active) = active_task::load_active_task(&self.path_config.root_dir())? {
+        if let Some(active) = active_task::load_active_task(&self.path_config.active_task_file())? {
             let active_task_obj =
                 storage::load_task(&self.path_config.task_dir(), &active.task_id)?;
             return Err(anyhow!(
@@ -248,7 +248,7 @@ impl TaskManager {
 
         // Create and save active task record
         let active = ActiveTask::new(task.id.clone(), now);
-        active_task::save_active_task(&self.path_config.root_dir(), &active)?;
+        active_task::save_active_task(&self.path_config.active_task_file(), &active)?;
 
         debug!("Started task: {} and saved to active task file", task.id);
         Ok(task.id)
@@ -257,7 +257,7 @@ impl TaskManager {
     /// Stop working on a task
     pub fn stop_task(&self) -> Result<String> {
         // Check if there's an active task
-        let Some(active_task_info) = active_task::load_active_task(&self.path_config.root_dir())?
+        let Some(active_task_info) = active_task::load_active_task(&self.path_config.active_task_file())?
         else {
             // No active task found
             bail!("No active task found. Task might not be in progress.")
@@ -285,7 +285,7 @@ impl TaskManager {
         storage::save_task(&self.path_config.task_dir(), &task)?;
 
         // Clear the active task record
-        active_task::clear_active_task(&self.path_config.root_dir())?;
+        active_task::clear_active_task(&self.path_config.active_task_file())?;
 
         debug!(
             "Stopped task: {} and cleared active task file",
@@ -301,7 +301,7 @@ impl TaskManager {
             None => {
                 // Load the active task if no ID is provided
                 let Some(active_task) =
-                    active_task::load_active_task(&self.path_config.root_dir())?
+                    active_task::load_active_task(&self.path_config.active_task_file())?
                 else {
                     bail!("No active task found");
                 };
@@ -319,7 +319,7 @@ impl TaskManager {
         }
 
         // Check if this is the active task
-        let is_active_task = match active_task::load_active_task(&self.path_config.root_dir())? {
+        let is_active_task = match active_task::load_active_task(&self.path_config.active_task_file())? {
             Some(active) => {
                 if active.task_id == task_id {
                     // Calculate time spent using the active task record
@@ -352,7 +352,7 @@ impl TaskManager {
 
         // If this was the active task, clear the active task record
         if is_active_task {
-            active_task::clear_active_task(&self.path_config.root_dir())?;
+            active_task::clear_active_task(&self.path_config.active_task_file())?;
             debug!(
                 "Aborted active task: {} and cleared active task file",
                 task_id

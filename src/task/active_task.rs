@@ -28,12 +28,11 @@ impl ActiveTask {
 }
 
 /// Save the currently active task
-pub fn save_active_task(root_dir: &Path, active_task: &ActiveTask) -> Result<()> {
-    let path = root_dir.join("active_task.toml");
-    debug!("Saving active task to {}", path.display());
+pub fn save_active_task(file_path: &Path, active_task: &ActiveTask) -> Result<()> {
+    debug!("Saving active task to {}", file_path.display());
 
     // Make sure the directory exists
-    if let Some(parent) = path.parent() {
+    if let Some(parent) = file_path.parent() {
         fs::create_dir_all(parent)?;
     }
 
@@ -41,27 +40,26 @@ pub fn save_active_task(root_dir: &Path, active_task: &ActiveTask) -> Result<()>
     let toml_string = toml::to_string(active_task)?;
 
     // Write to file
-    let mut file = File::create(&path)?;
+    let mut file = File::create(file_path)?;
     file.write_all(toml_string.as_bytes())?;
 
     Ok(())
 }
 
 /// Load the currently active task, if any
-pub fn load_active_task(root_dir: &Path) -> Result<Option<ActiveTask>> {
-    let path = root_dir.join("active_task.toml");
-    trace!("Checking for active task at {}", path.display());
+pub fn load_active_task(file_path: &Path) -> Result<Option<ActiveTask>> {
+    trace!("Checking for active task at {}", file_path.display());
 
-    if !path.exists() {
+    if !file_path.exists() {
         debug!("No active task file found");
         return Ok(None);
     }
 
     // Read the file
     let mut contents = String::new();
-    let mut file = File::open(&path).context(format!(
+    let mut file = File::open(file_path).context(format!(
         "Failed to open active task file at {}",
-        path.display()
+        file_path.display()
     ))?;
     file.read_to_string(&mut contents)?;
 
@@ -73,15 +71,14 @@ pub fn load_active_task(root_dir: &Path) -> Result<Option<ActiveTask>> {
 }
 
 /// Clear the active task
-pub fn clear_active_task(root_dir: &Path) -> Result<()> {
-    let path = root_dir.join("active_task.toml");
-    if !path.exists() {
+pub fn clear_active_task(file_path: &Path) -> Result<()> {
+    if !file_path.exists() {
         debug!("No active task file to clear");
         return Ok(());
     }
 
     // Remove the file
-    fs::remove_file(&path)?;
+    fs::remove_file(file_path)?;
 
     info!("Cleared active task");
     Ok(())

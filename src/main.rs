@@ -26,7 +26,11 @@ fn main() -> ExitCode {
     };
 
     // Initialize logging system
-    if let Err(e) = logging::init_logger(cli.verbose, config.general.log_file()) {
+    if let Err(e) = logging::init_logger(
+        cli.verbose,
+        config.path.log_file(),
+        config.general.max_log_history,
+    ) {
         eprintln!("{}", e);
         return ExitCode::FAILURE;
     }

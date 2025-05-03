@@ -1,29 +1,19 @@
-use std::path::PathBuf;
-
 use serde::{Deserialize, Serialize};
-use shellexpand::tilde;
 
-/// Default path for log file
-pub const DEFAULT_LOG_FILE: &str = "~/.rutd/rutd.log";
+/// Default maximum number of lines to keep in log file
+pub const DEFAULT_MAX_LOG_HISTORY: usize = 100;
 
 /// General configuration settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
-    /// Log file path
-    log_file: Option<PathBuf>,
+    /// Maximum number of lines to keep in log file
+    pub max_log_history: Option<usize>,
 }
 
 impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
-            log_file: Some(PathBuf::from(tilde(DEFAULT_LOG_FILE).as_ref())),
+            max_log_history: Some(DEFAULT_MAX_LOG_HISTORY),
         }
-    }
-}
-
-impl GeneralConfig {
-    /// Get the log file path
-    pub fn log_file(&self) -> Option<PathBuf> {
-        self.log_file.clone()
     }
 }
