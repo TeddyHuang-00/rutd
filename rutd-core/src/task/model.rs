@@ -2,6 +2,7 @@ use std::fmt;
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, Days, Local, Months, NaiveDate, TimeZone, Weekday};
+#[cfg(feature = "cli")]
 use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 
@@ -25,19 +26,20 @@ Relative format also supports:
 // FIXME: Visible aliases for value enum is not yet supported in clap, see
 // https://github.com/clap-rs/clap/pull/5480
 /// Task Priority
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "cli", derive(ValueEnum))]
 pub enum Priority {
     /// Most urgent (alias: u, 0)
-    #[value(aliases = ["u", "0"])]
+    #[cfg_attr(feature = "cli", value(aliases = ["u", "0"]))]
     Urgent,
     /// High priority (alias: h, 1)
-    #[value(aliases = ["h", "1"])]
+    #[cfg_attr(feature = "cli", value(aliases = ["h", "1"]))]
     High,
     /// Normal priority (alias: n, 2)
-    #[value(aliases = ["n", "2"])]
+    #[cfg_attr(feature = "cli", value(aliases = ["n", "2"]))]
     Normal,
     /// Low priority (alias: l, 3)
-    #[value(aliases = ["l", "3"])]
+    #[cfg_attr(feature = "cli", value(aliases = ["l", "3"]))]
     Low,
 }
 
@@ -55,16 +57,17 @@ impl fmt::Display for Priority {
 // FIXME: Visible aliases for value enum is not yet supported in clap, see
 // https://github.com/clap-rs/clap/pull/5480
 /// Task Status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "cli", derive(ValueEnum))]
 pub enum TaskStatus {
     /// Pending (alias: t, p, pending)
-    #[value(aliases = ["t", "p", "pending"])]
+    #[cfg_attr(feature = "cli", value(aliases = ["t", "p", "pending"]))]
     Todo,
     /// Finished (alias: d, f, finished)
-    #[value(aliases = ["d", "f", "finished"])]
+    #[cfg_attr(feature = "cli", value(aliases = ["d", "f", "finished"]))]
     Done,
     /// Cancelled (alias: a, x, c, cancelled)
-    #[value(aliases = ["a", "x", "c", "cancelled"])]
+    #[cfg_attr(feature = "cli", value(aliases = ["a", "x", "c", "cancelled"]))]
     Aborted,
 }
 
@@ -79,53 +82,54 @@ impl fmt::Display for TaskStatus {
 }
 
 /// Filter options for task queries
-#[derive(Debug, Clone, Default, Args)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "cli", derive(Args))]
 pub struct FilterOptions {
     /// Filter by priority
-    #[arg(value_enum, short, long)]
+    #[cfg_attr(feature = "cli", arg(value_enum, short, long))]
     pub priority: Option<Priority>,
 
     /// Filter by scope (project name)
-    #[arg(short = 'c', long)]
+    #[cfg_attr(feature = "cli", arg(short = 'c', long))]
     pub scope: Option<String>,
 
     /// Filter by task type
-    #[arg(short, long)]
+    #[cfg_attr(feature = "cli", arg(short, long))]
     pub task_type: Option<String>,
 
     /// Filter by status
-    #[arg(value_enum, short, long)]
+    #[cfg_attr(feature = "cli", arg(value_enum, short, long))]
     pub status: Option<TaskStatus>,
 
     /// Filter by creation date range
-    #[arg(
+    #[cfg_attr(feature = "cli", arg(
         short = 'a', long,
         value_parser = parse_date_range,
         allow_hyphen_values = true,
         long_help = DATE_LONG_HELP
-    )]
+    ))]
     pub creation_time: Option<DateRange>,
 
     /// Filter by last update date range
-    #[arg(
+    #[cfg_attr(feature = "cli", arg(
         short, long,
         value_parser = parse_date_range,
         allow_hyphen_values = true,
         long_help = DATE_LONG_HELP
-    )]
+    ))]
     pub update_time: Option<DateRange>,
 
     /// Filter by completion date range, including cancelled tasks
-    #[arg(
+    #[cfg_attr(feature = "cli", arg(
         short = 'd', long,
         value_parser = parse_date_range,
         allow_hyphen_values = true,
         long_help = DATE_LONG_HELP
-    )]
+    ))]
     pub completion_time: Option<DateRange>,
 
     /// Enable fuzzy matching for description
-    #[arg(short, long)]
+    #[cfg_attr(feature = "cli", arg(short, long))]
     pub fuzzy: Option<String>,
 }
 
