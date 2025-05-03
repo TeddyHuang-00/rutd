@@ -24,9 +24,4 @@ release TARGET:
     #!/usr/bin/bash
     just release-test {{TARGET}}
     echo "Do you want to continue publishing the release? (y/n)"
-    read -r answer
-    if [ "$answer" = "y" ]; then
-        cargo release {{TARGET}} --workspace {{RELEASE_OPT}} -x
-    else
-        echo "Release not published."
-    fi
+    cargo release {{TARGET}} --workspace {{RELEASE_OPT}} -x
