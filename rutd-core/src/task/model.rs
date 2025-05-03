@@ -219,8 +219,7 @@ fn parse_absolute_date<Tz: TimeZone>(
             };
             let mut date = NaiveDate::from_ymd_opt(year, month, day)
                 .context(format!(
-                    "Date does not exist: {:04}/{:02}/{:02}",
-                    year, month, day
+                    "Date does not exist: {year:04}/{month:02}/{day:02}"
                 ))?
                 .and_hms_opt(0, 0, 0)
                 .unwrap();
@@ -255,7 +254,7 @@ fn parse_absolute_date<Tz: TimeZone>(
                 anyhow::bail!("Invalid year in date string: {}", date_str);
             };
             let mut date = NaiveDate::from_ymd_opt(year, 1, 1)
-                .context(format!("Date does not exist: {:04}/01/01", year))?
+                .context(format!("Date does not exist: {year:04}/01/01"))?
                 .and_hms_opt(0, 0, 0)
                 .unwrap();
             if is_end {

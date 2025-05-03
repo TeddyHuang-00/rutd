@@ -47,7 +47,7 @@ impl Config {
                     .as_str()
                     // Use double underscore to separate nested keys
                     .replace("__", ".");
-                info!("Loading environment variable: {}", key);
+                info!("Loading environment variable: {key}");
                 key.into()
             }))
             .extract()?)

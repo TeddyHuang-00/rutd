@@ -192,12 +192,9 @@ impl TaskManager {
         // If this was the active task, clear the active task record
         if is_active_task {
             active_task::clear_active_task(&self.path_config.active_task_file())?;
-            debug!(
-                "Completed active task: {} and cleared active task file",
-                task_id
-            );
+            debug!("Completed active task: {task_id} and cleared active task file");
         } else {
-            debug!("Completed task: {}", task_id);
+            debug!("Completed task: {task_id}");
         }
 
         Ok(())
@@ -340,12 +337,9 @@ impl TaskManager {
         // If this was the active task, clear the active task record
         if is_active_task {
             active_task::clear_active_task(&self.path_config.active_task_file())?;
-            debug!(
-                "Aborted active task: {} and cleared active task file",
-                task_id
-            );
+            debug!("Aborted active task: {task_id} and cleared active task file");
         } else {
-            debug!("Aborted task: {}", task_id);
+            debug!("Aborted task: {task_id}");
         }
 
         Ok(task_id)
@@ -369,7 +363,7 @@ impl TaskManager {
         let status = Command::new(&editor)
             .arg(temp_file.path())
             .status()
-            .context(format!("Failed to open editor {}", editor))?;
+            .context(format!("Failed to open editor {editor}"))?;
 
         if status.success() {
             // Read back the edited content
@@ -409,7 +403,7 @@ impl TaskManager {
 
         // Confirm deletion if not forced
         if count > 0 && !force {
-            let message = format!("Are you sure to delete {} tasks?", count);
+            let message = format!("Are you sure to delete {count} tasks?");
             if !display_manager.confirm(&message)? {
                 return Ok(0);
             }

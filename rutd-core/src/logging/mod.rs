@@ -31,7 +31,7 @@ impl FileLogger {
             if let Some(parent) = path.parent() {
                 if !parent.exists() {
                     if let Err(e) = std::fs::create_dir_all(parent) {
-                        eprintln!("Failed to create log directory: {}", e);
+                        eprintln!("Failed to create log directory: {e}");
                         return None;
                     }
                 }
@@ -47,7 +47,7 @@ impl FileLogger {
             {
                 Ok(file) => Some(Mutex::new(file)),
                 Err(e) => {
-                    eprintln!("Failed to open log file: {}", e);
+                    eprintln!("Failed to open log file: {e}");
                     None
                 }
             }
@@ -62,7 +62,7 @@ impl FileLogger {
 
         // Trim log file if necessary
         if let Err(e) = logger.trim_log_file() {
-            eprintln!("Failed to trim log file: {}", e);
+            eprintln!("Failed to trim log file: {e}");
         }
 
         logger
@@ -78,7 +78,7 @@ impl FileLogger {
         // Lock the file to perform operations
         let mut file = file_mutex
             .lock()
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to lock file mutex"))?;
+            .map_err(|_| io::Error::other("Failed to lock file mutex"))?;
 
         // Reset file cursor to the beginning
         file.seek(SeekFrom::Start(0))?;
@@ -202,7 +202,7 @@ pub fn init_logger(
             },
         )
         .init()
-        .map_err(|e| format!("Failed to initialize logger: {}", e))
+        .map_err(|e| format!("Failed to initialize logger: {e}"))
     } else {
         // Fallback to stdout logging if no log file is configured
         SimpleLogger::new()
@@ -210,6 +210,6 @@ pub fn init_logger(
             .with_module_level(APP_NAME, log_level)
             .without_timestamps()
             .init()
-            .map_err(|e| format!("Failed to initialize logger: {}", e))
+            .map_err(|e| format!("Failed to initialize logger: {e}"))
     }
 }

@@ -107,7 +107,7 @@ impl Display for DisplayManager {
                 let hours = ts / 3600;
                 let minutes = (ts % 3600) / 60;
                 let seconds = ts % 60;
-                format!("{}h {}m {}s", hours, minutes, seconds)
+                format!("{hours}h {minutes}m {seconds}s")
             } else {
                 "-".to_string()
             };
@@ -157,7 +157,7 @@ impl Display for DisplayManager {
         let seconds = total_time_spent % 60;
         stats_table.add_row(vec![
             "Total time spent",
-            &format!("{}h {}m {}s", hours, minutes, seconds),
+            &format!("{hours}h {minutes}m {seconds}s"),
         ]);
 
         println!("\n{stats_table}");
@@ -199,7 +199,7 @@ impl Display for DisplayManager {
             let seconds = time_spent % 60;
             table.add_row(vec![
                 "Time spent",
-                &format!("{}h {}m {}s", hours, minutes, seconds),
+                &format!("{hours}h {minutes}m {seconds}s"),
             ]);
         }
 

@@ -5,8 +5,7 @@ use rutd_tui::app::TuiApp;
 
 fn main() -> ExitCode {
     // Get configuration from environment variables
-    let Ok(config) =
-        Config::new().inspect_err(|e| eprintln!("Failed to load configuration: {}", e))
+    let Ok(config) = Config::new().inspect_err(|e| eprintln!("Failed to load configuration: {e}"))
     else {
         return ExitCode::FAILURE;
     };
@@ -20,7 +19,7 @@ fn main() -> ExitCode {
     // Create and run the TUI application
     let app = TuiApp::new(task_manager);
     if let Err(e) = app.run() {
-        eprintln!("Error running TUI application: {}", e);
+        eprintln!("Error running TUI application: {e}");
         return ExitCode::FAILURE;
     }
 

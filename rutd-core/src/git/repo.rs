@@ -96,13 +96,13 @@ impl GitRepo {
             &parents,
         )?;
 
-        debug!("Created commit: {}", commit_id);
+        debug!("Created commit: {commit_id}");
         Ok(())
     }
 
     /// Generate commit message using Conventional Commits format
     pub fn generate_commit_message(task_id: &str, action: &str) -> String {
-        format!("chore({}): {}", task_id, action)
+        format!("chore({task_id}): {action}")
     }
 
     /// Sync with remote repository (fetch, pull, push)
@@ -133,11 +133,11 @@ impl GitRepo {
         let remote_name = "origin";
 
         // Fetch from remote
-        debug!("Fetching from remote '{}'", remote_name);
+        debug!("Fetching from remote '{remote_name}'");
         let mut remote = self
             .repo
             .find_remote(remote_name)
-            .context(format!("No remote named '{}' found", remote_name))?;
+            .context(format!("No remote named '{remote_name}' found"))?;
 
         // Attempt to fetch but handle the case where the remote is empty or unreachable
         match remote.fetch(&["master", "main"], Some(&mut fetch_options), None) {
@@ -173,10 +173,10 @@ impl GitRepo {
             "master"
         };
 
-        debug!("Current branch: {}", branch_name);
+        debug!("Current branch: {branch_name}");
 
         // Try to merge remote changes
-        let remote_branch = format!("refs/remotes/{}/{}", remote_name, branch_name);
+        let remote_branch = format!("refs/remotes/{remote_name}/{branch_name}");
         if let Ok(remote_reference) = self.repo.find_reference(&remote_branch) {
             let remote_commit = remote_reference.peel_to_commit()?;
             let annotated_commit = self.repo.find_annotated_commit(remote_commit.id())?;
@@ -190,11 +190,11 @@ impl GitRepo {
                 // Perform the fast-forward
                 let mut reference = self
                     .repo
-                    .find_reference(&format!("refs/heads/{}", branch_name))?;
+                    .find_reference(&format!("refs/heads/{branch_name}"))?;
                 reference.set_target(remote_commit.id(), "Fast-forward update")?;
 
                 // Update the working directory
-                self.repo.set_head(&format!("refs/heads/{}", branch_name))?;
+                self.repo.set_head(&format!("refs/heads/{branch_name}"))?;
                 self.repo
                     .checkout_head(Some(CheckoutBuilder::new().force()))?;
 
@@ -260,22 +260,19 @@ impl GitRepo {
                 }
 
                 // Commit the merge
-                let commit_message = format!(
-                    "Merge remote-tracking branch '{}' into '{}'",
-                    remote_branch, branch_name
-                );
+                let commit_message =
+                    format!("Merge remote-tracking branch '{remote_branch}' into '{branch_name}'");
                 self.commit_merge(&annotated_commit, &commit_message)
                     .context("Failed to commit merge")?;
             }
         } else {
             debug!(
-                "Remote branch '{}' not found. This might be a new remote repository.",
-                remote_branch
+                "Remote branch '{remote_branch}' not found. This might be a new remote repository."
             );
         }
 
         // Push local changes
-        debug!("Pushing to remote '{}'", remote_name);
+        debug!("Pushing to remote '{remote_name}'");
         let mut callbacks = RemoteCallbacks::new();
         callbacks.credentials(move |url, username, allowed_types| {
             credential(url, username, allowed_types, git_config)
@@ -290,7 +287,7 @@ impl GitRepo {
         if self.repo.head().is_ok() {
             // Ensure HEAD exists (at least one commit)
             match remote.push(
-                &[format!("refs/heads/{}", branch_name)],
+                &[format!("refs/heads/{branch_name}")],
                 Some(&mut push_options),
             ) {
                 Ok(_) => info!("Successfully pushed to remote repository"),
@@ -348,8 +345,8 @@ fn credential(
     allowed_types: CredentialType,
     git_config: &GitConfig,
 ) -> Result<Cred, git2::Error> {
-    debug!("Attempting authentication for URL: {}", url);
-    debug!("Allowed credential types: {:?}", allowed_types);
+    debug!("Attempting authentication for URL: {url}");
+    debug!("Allowed credential types: {allowed_types:?}");
 
     // Try SSH key authentication with multiple possible key locations
     if allowed_types.contains(CredentialType::SSH_KEY)
@@ -358,22 +355,22 @@ fn credential(
         if let Ok(home) = env::var("HOME") {
             // Try different common SSH key file names
             let possible_key_paths = [
-                format!("{}/.ssh/id_rsa", home),
-                format!("{}/.ssh/id_ed25519", home),
-                format!("{}/.ssh/id_ecdsa", home),
-                format!("{}/.ssh/id_dsa", home),
-                format!("{}/.ssh/github_rsa", home),
+                format!("{home}/.ssh/id_rsa"),
+                format!("{home}/.ssh/id_ed25519"),
+                format!("{home}/.ssh/id_ecdsa"),
+                format!("{home}/.ssh/id_dsa"),
+                format!("{home}/.ssh/github_rsa"),
             ];
 
             for key_path in &possible_key_paths {
                 if Path::new(key_path).exists() {
-                    debug!("Trying SSH key: {}", key_path);
+                    debug!("Trying SSH key: {key_path}");
                     let username = username_from_url.unwrap_or("git");
-                    debug!("Using username: {}", username);
+                    debug!("Using username: {username}");
 
                     match Cred::ssh_key(username, None, Path::new(key_path), None) {
                         Ok(cred) => return Ok(cred),
-                        Err(e) => debug!("Failed to use SSH key {}: {}", key_path, e),
+                        Err(e) => debug!("Failed to use SSH key {key_path}: {e}"),
                     }
                 }
             }
@@ -393,11 +390,11 @@ fn credential(
         debug!("Trying username/password authentication");
 
         // Use the username from GitConfig or fallback to URL username or "git"
-        let username = git_config
-            .username
-            .is_empty()
-            .then_some(git_config.username.clone())
-            .unwrap_or_else(|| username_from_url.unwrap_or("git").to_string());
+        let username = if git_config.username.is_empty() {
+            username_from_url.unwrap_or("git").to_string()
+        } else {
+            git_config.username.clone()
+        };
 
         // Check if we have a password in the GitConfig
         if !git_config.password.is_empty() {
