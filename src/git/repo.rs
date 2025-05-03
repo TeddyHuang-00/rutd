@@ -395,13 +395,14 @@ fn credential(
         // Use the username from GitConfig or fallback to URL username or "git"
         let username = git_config
             .username
-            .clone()
+            .is_empty()
+            .then_some(git_config.username.clone())
             .unwrap_or_else(|| username_from_url.unwrap_or("git").to_string());
 
         // Check if we have a password in the GitConfig
-        if let Some(password) = git_config.password.clone() {
+        if !git_config.password.is_empty() {
             debug!("Using username/password from configuration");
-            return Cred::userpass_plaintext(&username, &password);
+            return Cred::userpass_plaintext(&username, &git_config.password);
         }
     }
 

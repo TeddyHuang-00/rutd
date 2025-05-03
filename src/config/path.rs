@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use shellexpand::tilde;
 
 /// Default path constants
@@ -9,7 +9,7 @@ pub const DEFAULT_TASKS_DIR: &str = "tasks";
 pub const ACTIVE_TASK_FILENAME: &str = "active_task.toml";
 
 /// Path configuration management
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PathConfig {
     /// Root directory path
     root_dir: PathBuf,

@@ -35,6 +35,7 @@ fn main() -> ExitCode {
         .without_timestamps()
         .init()
         .unwrap();
+    trace!("Received cli args: {:?}", cli);
 
     // Get configuration from environment variables
     let Ok(config) =
@@ -42,23 +43,16 @@ fn main() -> ExitCode {
     else {
         return ExitCode::FAILURE;
     };
+    trace!("Loaded configuration: {:?}", config);
+
     let path_config = config.path;
     let git_config = config.git;
-
-    debug!("Root directory: {}", path_config.root_dir().display());
-    debug!("Tasks directory: {}", path_config.task_dir().display());
-    debug!(
-        "Active task file: {}",
-        path_config.active_task_file().display()
-    );
 
     // Create a display manager
     let display_manager = DisplayManager::default();
 
     // Build the task manager
     let task_manager = TaskManager::new(path_config, git_config);
-
-    trace!("Received cli args: {:?}", cli);
 
     // Handle different commands
     match &cli.command {

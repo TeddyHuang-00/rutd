@@ -1,10 +1,10 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Git configuration for authentication
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GitConfig {
     /// Git username for authentication
-    pub username: Option<String>,
+    pub username: String,
     /// Git password for authentication
-    pub password: Option<String>,
+    pub password: String,
 }
