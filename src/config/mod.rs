@@ -1,3 +1,4 @@
+pub mod general;
 pub mod git;
 pub mod path;
 
@@ -6,6 +7,7 @@ use figment::{
     Figment,
     providers::{Env, Format, Serialized, Toml},
 };
+pub use general::GeneralConfig;
 pub use git::GitConfig;
 use log::info;
 pub use path::PathConfig;
@@ -15,6 +17,8 @@ use shellexpand::tilde;
 /// Main configuration structure that holds all configuration options
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
+    /// General configuration
+    pub general: GeneralConfig,
     /// Path configuration
     pub path: PathConfig,
     /// Git configuration
@@ -36,8 +40,9 @@ impl Config {
             .merge(Serialized::defaults(Config::default()))
             .merge(Toml::file(tilde(&config_file).as_ref()).nested())
             .merge(Env::prefixed(&env_var_prefix).map(|key| {
-                // Convert environment variable keys to a format that matches the config structure
-                // For example, "RUTD_PATH__ROOT_DIR" becomes "path.root_dir"
+                // Convert environment variable keys to a format that matches the config
+                // structure For example, "RUTD_PATH__ROOT_DIR" becomes
+                // "path.root_dir"
                 let key = key
                     .as_str()
                     // Use double underscore to separate nested keys

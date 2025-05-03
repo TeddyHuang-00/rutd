@@ -2,6 +2,7 @@ mod cli;
 mod config;
 mod display;
 mod git;
+mod logging;
 mod task;
 
 use std::process::ExitCode;
@@ -10,39 +11,27 @@ use clap::Parser;
 use cli::Cli;
 use config::Config;
 use display::DisplayManager;
-use log::{LevelFilter, debug, trace};
-use simple_logger::SimpleLogger;
+use log::{debug, trace};
 use task::TaskManager;
-
-const APP_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn main() -> ExitCode {
     // Parse command line arguments
     let cli = Cli::parse();
 
-    // Set up logging
-    // TODO: Log to a file instead of stdout
-    SimpleLogger::new()
-        .with_level(LevelFilter::Info)
-        .with_module_level(
-            APP_NAME,
-            match cli.verbose {
-                0 => LevelFilter::Info,
-                1 => LevelFilter::Debug,
-                2.. => LevelFilter::Trace,
-            },
-        )
-        .without_timestamps()
-        .init()
-        .unwrap();
-    trace!("Received cli args: {:?}", cli);
-
     // Get configuration from environment variables
     let Ok(config) =
-        Config::new().inspect_err(|e| log::error!("Failed to load configuration: {}", e))
+        Config::new().inspect_err(|e| eprintln!("Failed to load configuration: {}", e))
     else {
         return ExitCode::FAILURE;
     };
+
+    // Initialize logging system
+    if let Err(e) = logging::init_logger(cli.verbose, config.general.log_file()) {
+        eprintln!("{}", e);
+        return ExitCode::FAILURE;
+    }
+
+    trace!("Received cli args: {:?}", cli);
     trace!("Loaded configuration: {:?}", config);
 
     let path_config = config.path;

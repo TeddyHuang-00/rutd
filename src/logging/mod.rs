@@ -1,0 +1,131 @@
+use std::{
+    fs::{File, OpenOptions},
+    io::Write,
+    path::PathBuf,
+    sync::Mutex,
+};
+
+use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
+use simple_logger::SimpleLogger;
+
+// The name of the application, used for module-level logging
+const APP_NAME: &str = env!("CARGO_PKG_NAME");
+
+// Custom logger that writes to a file
+pub struct FileLogger {
+    level: LevelFilter,
+    module_level: LevelFilter,
+    file: Option<Mutex<File>>,
+}
+
+impl FileLogger {
+    pub fn new(
+        level: LevelFilter,
+        module_level: LevelFilter,
+        log_file_path: Option<PathBuf>,
+    ) -> Self {
+        let file = log_file_path.and_then(|path| {
+            // Create parent directory if it doesn't exist
+            if let Some(parent) = path.parent() {
+                if !parent.exists() {
+                    if let Err(e) = std::fs::create_dir_all(parent) {
+                        eprintln!("Failed to create log directory: {}", e);
+                        return None;
+                    }
+                }
+            }
+
+            // Open log file
+            match OpenOptions::new().create(true).append(true).open(path) {
+                Ok(file) => Some(Mutex::new(file)),
+                Err(e) => {
+                    eprintln!("Failed to open log file: {}", e);
+                    None
+                }
+            }
+        });
+
+        Self {
+            level,
+            module_level,
+            file,
+        }
+    }
+
+    pub fn init(self) -> Result<(), SetLoggerError> {
+        log::set_max_level(self.level.max(self.module_level));
+        log::set_boxed_logger(Box::new(self))
+    }
+}
+
+impl Log for FileLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        let level = if metadata.target().starts_with(APP_NAME) {
+            self.module_level
+        } else {
+            self.level
+        };
+
+        metadata.level() <= level
+    }
+
+    fn log(&self, record: &Record) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+
+        if let Some(file) = &self.file {
+            if let Ok(mut file) = file.lock() {
+                let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f");
+                let _ = writeln!(
+                    file,
+                    "[{}] [{}] [{}] {}",
+                    timestamp,
+                    record.level(),
+                    record.target(),
+                    record.args()
+                );
+            }
+        } else {
+            // Fallback to standard logger behavior if file is not available
+            println!("[{}] [{}] {}", record.level(), record.target(), record.args());
+        }
+    }
+
+    fn flush(&self) {
+        if let Some(file) = &self.file {
+            if let Ok(mut file) = file.lock() {
+                let _ = file.flush();
+            }
+        }
+    }
+}
+
+/// Initialize the logger based on configuration
+///
+/// If a log file path is provided, logs will be written to that file.
+/// Otherwise, logs will be written to stdout.
+pub fn init_logger(verbose_level: u8, log_file_path: Option<PathBuf>) -> Result<(), String> {
+    // Set up logging
+    let log_level = match verbose_level {
+        0 => LevelFilter::Info,
+        1 => LevelFilter::Debug,
+        _ => LevelFilter::Trace,
+    };
+
+    // Configure logger based on config
+    if let Some(log_file_path) = log_file_path {
+        // Initialize file logger
+        FileLogger::new(LevelFilter::Info, log_level, Some(log_file_path))
+            .init()
+            .map_err(|e| format!("Failed to initialize logger: {}", e))
+    } else {
+        // Fallback to stdout logging if no log file is configured
+        SimpleLogger::new()
+            .with_level(LevelFilter::Info)
+            .with_module_level(APP_NAME, log_level)
+            .without_timestamps()
+            .init()
+            .map_err(|e| format!("Failed to initialize logger: {}", e))
+    }
+}
