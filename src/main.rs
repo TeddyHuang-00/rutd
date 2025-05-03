@@ -148,7 +148,7 @@ fn main() -> ExitCode {
             }
         }
         cli::commands::Commands::Done { id } => {
-            display_manager.show_failure(&format!("Mark task {} as completed", id));
+            trace!("Mark task {} as completed", id);
 
             // Use TaskManager to mark task as completed
             if task_manager
@@ -163,7 +163,7 @@ fn main() -> ExitCode {
             }
         }
         cli::commands::Commands::Edit { id } => {
-            display_manager.show_failure(&format!("Edit task {}", id));
+            trace!("Edit task {}", id);
 
             // Use TaskManager to edit task description
             if task_manager
@@ -178,7 +178,7 @@ fn main() -> ExitCode {
             }
         }
         cli::commands::Commands::Start { id } => {
-            display_manager.show_failure(&format!("Start task {}", id));
+            trace!("Start task {}", id);
 
             // Use TaskManager to start a task
             if task_manager
@@ -207,7 +207,7 @@ fn main() -> ExitCode {
         }
         cli::commands::Commands::Abort { id } => {
             if let Some(id) = id {
-                display_manager.show_failure(&format!("Abort task {}", id));
+                trace!("Abort task {}", id);
             } else {
                 trace!("Abort active task");
             }
