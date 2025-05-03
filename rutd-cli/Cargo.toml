@@ -8,7 +8,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-rutd-core = { path = "../rutd-core", features = ["cli"]}
+rutd-core = { path = "../rutd-core", features = ["cli"], version = "*"}
 anyhow.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
