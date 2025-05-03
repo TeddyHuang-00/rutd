@@ -192,7 +192,7 @@ pub fn init_logger(
     if let Some(log_file_path) = log_file_path {
         // Initialize file logger
         FileLogger::new(
-            LevelFilter::Info,
+            log_level,
             log_level,
             Some(log_file_path),
             if max_history > 0 {
@@ -206,7 +206,7 @@ pub fn init_logger(
     } else {
         // Fallback to stdout logging if no log file is configured
         SimpleLogger::new()
-            .with_level(LevelFilter::Info)
+            .with_level(log_level)
             .with_module_level(APP_NAME, log_level)
             .without_timestamps()
             .init()
