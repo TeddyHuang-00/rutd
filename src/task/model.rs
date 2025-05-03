@@ -80,12 +80,30 @@ pub struct FilterOptions {
     #[arg(value_enum, short, long)]
     pub status: Option<TaskStatus>,
 
-    /// Filter by date range in a unified format
+    /// Filter by date range
     ///
-    /// Supports specific dates (e.g., '2023/10/15'), months (e.g., '2023/10'),
-    /// years (e.g., '2023'), and relative time expressions like
-    /// '5d' (5 days ago), 'w' (current week so far),
-    /// '3m' (3 months ago), and 'y' (current year so far)
+    /// Date range format:
+    /// 1. <date>-<date> (e.g., '2023/01/01-2023/01/31' means from Jan 1, 2023 to
+    ///    Jan 31, 2023)
+    /// 2. <date>- (e.g., '5d-' means from 5 days ago to now)
+    /// 3. -<date> (e.g., '-2023' means earlier than end of year 2023)
+    /// 4. <date> (e.g., 'w' means current the week)
+    ///
+    /// Various date formats are supported:
+    /// 1. Absolute date: YYYY/MM/DD, YYYY/MM, YYYY.
+    /// 2. Relative date: <num>d, <num>w, <num>m, <num>y; num is a non-negative
+    ///    integer, d for days, w for weeks, m for months, y for years. If num
+    ///    is omitted, it defaults to 0, meaning the current cycle.
+    ///
+    /// Relative date also supports:
+    /// 1. '+<date>' to specify an exact offset from the current date. This
+    ///    changes the default behavior of the date range to rounded to the
+    ///    beginning of the cycle. e.g., '5d' means 5 days ago, but the time
+    ///    part is set to 00:00:00, while '+5d' means 5 days ago at the exact
+    ///    time.
+    /// 2. Combination of relative dates, e.g., '5d3w', '+1m2d', etc. The last
+    ///    date unit is used to determine the cycle for rounding in non-exact
+    ///    mode. NOTE: This is WIP, not yet available.
     #[arg(short, long, value_parser = parse_date_range)]
     pub date_range: DateRange,
 
@@ -201,6 +219,7 @@ fn parse_absolute_date<Tz: TimeZone>(
     ))
 }
 
+// TODO: Support relative date with multiple units, e.g., 5d3w, +1m2d, etc.
 fn parse_relative_date<Tz: TimeZone>(
     date_str: &str,
     now: DateTime<Tz>,
