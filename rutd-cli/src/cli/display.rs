@@ -2,9 +2,10 @@ use anyhow::Result;
 use colored::Colorize;
 use comfy_table::{Cell, CellAlignment, ContentArrangement, Row, Table};
 use dialoguer::Confirm;
-
-use rutd_core::display::Display;
-use rutd_core::task::{Priority, Task, TaskStatus};
+use rutd_core::{
+    display::Display,
+    task::{Priority, Task, TaskStatus},
+};
 
 /// Responsible for handling all user interface output
 #[derive(Debug, Default)]
