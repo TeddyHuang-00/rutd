@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow, bail};
-use chrono::{DateTime, Duration, Local};
+use chrono::{DateTime, Local};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use log::debug;
 pub use model::{FilterOptions, Priority, Task, TaskStatus};
