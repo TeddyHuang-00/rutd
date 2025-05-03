@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 use crate::{
     config::{GitConfig, PathConfig},
-    display::DisplayManager,
+    display::Display,
     git::{MergeStrategy, repo::GitRepo},
     task::active_task::ActiveTask,
 };
@@ -396,11 +396,11 @@ impl TaskManager {
     }
 
     /// Clean tasks based on filters
-    pub fn clean_tasks(
+    pub fn clean_tasks<D: Display>(
         &self,
         filter_options: &FilterOptions,
         force: bool,
-        display_manager: &DisplayManager,
+        display_manager: &D,
     ) -> Result<usize> {
         // Get tasks matching filters
         let tasks = self.list_tasks(filter_options)?;

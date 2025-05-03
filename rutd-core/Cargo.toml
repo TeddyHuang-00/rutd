@@ -1,0 +1,23 @@
+[package]
+name = "rutd-core"
+description = "Core functionality for RuTD - A Rust based To-Do list manager"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+git2.workspace = true
+log.workspace = true
+serde.workspace = true
+shellexpand.workspace = true
+tempfile.workspace = true
+toml.workspace = true
+uuid.workspace = true
+figment.workspace = true
+clap.workspace = true
+simple_logger.workspace = true
+fuzzy-matcher.workspace = true

@@ -1,6 +1,5 @@
 use clap::{Parser, Subcommand};
-
-use crate::{
+use rutd_core::{
     git::MergeStrategy,
     task::{Priority, model::FilterOptions},
 };

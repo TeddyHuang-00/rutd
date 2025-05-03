@@ -1,0 +1,13 @@
+[package]
+name = "rutd-tui"
+description = "Text-based user interface for RuTD - A Rust based To-Do list manager"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+rutd-core = { path = "../rutd-core" }
+anyhow.workspace = true
+log.workspace = true

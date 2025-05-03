@@ -1,18 +1,9 @@
-mod cli;
-mod config;
-mod display;
-mod git;
-mod logging;
-mod task;
-
 use std::process::ExitCode;
 
 use clap::Parser;
-use cli::Cli;
-use config::Config;
-use display::DisplayManager;
 use log::{debug, trace};
-use task::TaskManager;
+use rutd_cli::{Cli, DisplayManager};
+use rutd_core::{Config, Display, TaskManager};
 
 fn main() -> ExitCode {
     // Parse command line arguments
@@ -27,7 +18,7 @@ fn main() -> ExitCode {
 
     // Initialize logging system
     if let Err(e) =
-        logging::init_logger(cli.verbose, config.path.log_file(), config.log.max_history)
+        rutd_core::logging::init_logger(cli.verbose, config.path.log_file(), config.log.max_history)
     {
         eprintln!("{}", e);
         return ExitCode::FAILURE;
@@ -40,14 +31,14 @@ fn main() -> ExitCode {
     let git_config = config.git;
 
     // Create a display manager
-    let display_manager = DisplayManager::default();
+    let display_manager = DisplayManager;
 
     // Build the task manager
     let task_manager = TaskManager::new(path_config, git_config);
 
     // Handle different commands
     match &cli.command {
-        cli::commands::Commands::Add {
+        rutd_cli::Commands::Add {
             description,
             priority,
             scope,
@@ -73,7 +64,7 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        cli::commands::Commands::List { filter, stats } => {
+        rutd_cli::Commands::List { filter, stats } => {
             trace!("List tasks");
             // Use the FilterOptions struct instead of individual parameters
 
@@ -91,12 +82,13 @@ fn main() -> ExitCode {
             }
 
             // Use DisplayManager to show tasks
-            if let Err(e) = display_manager.show_tasks(&tasks, *stats) {
-                display_manager.show_failure(&format!("Fail to show tasks: {}", e));
-                return ExitCode::FAILURE;
+            display_manager.show_tasks_list(&tasks);
+
+            if *stats {
+                display_manager.show_task_stats(&tasks);
             }
         }
-        cli::commands::Commands::Done { id } => {
+        rutd_cli::Commands::Done { id } => {
             trace!("Mark task {} as completed", id);
 
             // Use TaskManager to mark task as completed
@@ -111,7 +103,7 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        cli::commands::Commands::Edit { id } => {
+        rutd_cli::Commands::Edit { id } => {
             trace!("Edit task {}", id);
 
             // Use TaskManager to edit task description
@@ -126,7 +118,7 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        cli::commands::Commands::Start { id } => {
+        rutd_cli::Commands::Start { id } => {
             trace!("Start task {}", id);
 
             // Use TaskManager to start a task
@@ -141,7 +133,7 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        cli::commands::Commands::Stop {} => {
+        rutd_cli::Commands::Stop {} => {
             trace!("Stop active task");
 
             // Use TaskManager to stop the active task
@@ -154,7 +146,7 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        cli::commands::Commands::Abort { id } => {
+        rutd_cli::Commands::Abort { id } => {
             if let Some(id) = id {
                 trace!("Abort task {}", id);
             } else {
@@ -173,7 +165,7 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        cli::commands::Commands::Clean { filter, force } => {
+        rutd_cli::Commands::Clean { filter, force } => {
             trace!("Clean tasks");
             // Use the FilterOptions struct instead of individual parameters
             debug!("Force clean without confirmation: {}", force);
@@ -190,7 +182,7 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        cli::commands::Commands::Sync { prefer } => {
+        rutd_cli::Commands::Sync { prefer } => {
             trace!("Sync with remote repository");
             debug!("Conflict resolution preference: {}", prefer);
 
@@ -208,7 +200,7 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        cli::commands::Commands::Clone { url } => {
+        rutd_cli::Commands::Clone { url } => {
             trace!("Clone remote repository");
             debug!("Repository URL: {}", url);
 
