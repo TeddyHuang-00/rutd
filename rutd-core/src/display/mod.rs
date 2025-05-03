@@ -10,7 +10,10 @@ pub trait Display {
     /// Get user confirmation
     fn confirm(&self, message: &str) -> Result<bool>;
     /// Editor for user input
-    fn edit(&self, message: &str) -> Result<String>;
+    ///
+    /// Should return `None` if the user aborts the action or no changes are
+    /// made, and `Some(String)` if the user provides a new value.
+    fn edit(&self, message: &str) -> Result<Option<String>>;
     /// Display a success message
     fn show_success(&self, message: &str);
     /// Display a failure message

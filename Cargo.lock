@@ -1059,7 +1059,6 @@ dependencies = [
  "serde",
  "shellexpand",
  "simple_logger",
- "tempfile",
  "toml",
  "uuid",
 ]
