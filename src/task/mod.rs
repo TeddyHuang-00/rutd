@@ -93,33 +93,33 @@ impl TaskManager {
         }
 
         // Get the date range from filter options
-        let date_range = &filter_options.date_range;
+        if let Some(date_range) = &filter_options.date_range {
+            // Check completion date against date range
+            if let Some(completed_at) = &task.completed_at {
+                if let Ok(completed_date) = DateTime::parse_from_rfc3339(completed_at) {
+                    let completed_at_local = completed_date.with_timezone(&Local);
 
-        // Check completion date against date range
-        if let Some(completed_at) = &task.completed_at {
-            if let Ok(completed_date) = DateTime::parse_from_rfc3339(completed_at) {
-                let completed_at_local = completed_date.with_timezone(&Local);
+                    // Check lower bound if exists
+                    if let Some(from) = date_range.from {
+                        if completed_at_local < from {
+                            return false;
+                        }
+                    }
 
-                // Check lower bound if exists
-                if let Some(from) = date_range.from {
-                    if completed_at_local < from {
-                        return false;
+                    // Check upper bound if exists
+                    if let Some(to) = date_range.to {
+                        if completed_at_local > to {
+                            return false;
+                        }
                     }
                 }
-
-                // Check upper bound if exists
-                if let Some(to) = date_range.to {
-                    if completed_at_local > to {
-                        return false;
-                    }
-                }
+            } else if (date_range.from.is_some() || date_range.to.is_some())
+                && (task.status == TaskStatus::Done || task.status == TaskStatus::Aborted)
+            {
+                // If date range is specified and the task is completed but has no completion
+                // date, exclude it
+                return false;
             }
-        } else if (date_range.from.is_some() || date_range.to.is_some())
-            && (task.status == TaskStatus::Done || task.status == TaskStatus::Aborted)
-        {
-            // If date range is specified and the task is completed but has no completion
-            // date, exclude it
-            return false;
         }
 
         // Check fuzzy matching on description

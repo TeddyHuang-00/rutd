@@ -105,7 +105,7 @@ pub struct FilterOptions {
     ///    date unit is used to determine the cycle for rounding in non-exact
     ///    mode. NOTE: This is WIP, not yet available.
     #[arg(short, long, value_parser = parse_date_range)]
-    pub date_range: DateRange,
+    pub date_range: Option<DateRange>,
 
     /// Enable fuzzy matching for description
     #[arg(short, long)]
