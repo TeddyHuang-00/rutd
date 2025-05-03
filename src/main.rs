@@ -76,51 +76,15 @@ fn main() -> ExitCode {
             }
         }
         cli::commands::Commands::List {
-            priority,
-            scope,
-            task_type,
-            status,
-            from_date,
-            to_date,
-            fuzzy,
+            filter,
             stats,
         } => {
             trace!("List tasks");
-            // TODO: Refactor filter options into dedicated struct, and implement function
-            // to log filter options if let Some(p) = priority {
-            //     display_manager.show_debug("Filter by priority: {}", p);
-            // }
-            // if let Some(s) = scope {
-            //     display_manager.show_debug("Filter by scope: {}", s);
-            // }
-            // if let Some(t) = task_type {
-            //     display_manager.show_debug("Filter by type: {:?}", t);
-            // }
-            // if let Some(s) = status {
-            //     display_manager.show_debug("Filter by status: {}", s);
-            // }
-            // if let Some(f) = from_date {
-            //     display_manager.show_debug("Filter by completion date from: {}", f);
-            // }
-            // if let Some(t) = to_date {
-            //     display_manager.show_debug("Filter by completion date to: {}", t);
-            // }
-            // if let Some(f) = fuzzy {
-            //     display_manager.show_debug("Search using fuzzy match: {}", f);
-            // }
-            debug!("Show statistics: {}", stats);
+            // Use the FilterOptions struct instead of individual parameters
 
             // Use TaskManager to list tasks
             let Ok(tasks) = task_manager
-                .list_tasks(
-                    *priority,
-                    scope.as_deref(),
-                    task_type.clone(),
-                    *status,
-                    from_date.as_deref(),
-                    to_date.as_deref(),
-                    fuzzy.as_deref(),
-                )
+                .list_tasks(filter)
                 .inspect_err(|e| {
                     display_manager.show_failure(&format!("Fail to load tasks: {}", e));
                 })
@@ -218,39 +182,18 @@ fn main() -> ExitCode {
             }
         }
         cli::commands::Commands::Clean {
-            priority,
-            scope,
-            task_type,
-            status,
+            filter,
             older_than,
             force,
         } => {
             trace!("Clean tasks");
-            // TODO: Use the same filter options as in the list command
-            // if let Some(p) = priority {
-            //     display_manager.show_debug("Filter by priority: {}", p);
-            // }
-            // if let Some(s) = scope {
-            //     display_manager.show_debug("Filter by scope: {}", s);
-            // }
-            // if let Some(t) = task_type {
-            //     display_manager.show_debug("Filter by type: {:?}", t);
-            // }
-            // if let Some(s) = status {
-            //     display_manager.show_debug("Filter by status: {}", s);
-            // }
-            // if let Some(days) = older_than {
-            //     display_manager.show_debug("Filter by age: older than {} days", days);
-            // }
+            // Use the FilterOptions struct instead of individual parameters
             debug!("Force clean without confirmation: {}", force);
 
             // Use TaskManager to clean tasks
             if task_manager
                 .clean_tasks(
-                    *priority,
-                    scope.as_deref(),
-                    task_type.clone(),
-                    *status,
+                    filter,
                     *older_than,
                     *force,
                     &display_manager,

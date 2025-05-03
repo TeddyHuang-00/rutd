@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 use crate::{
     git::MergeStrategy,
-    task::{Priority, TaskStatus},
+    task::{Priority, model::FilterOptions},
 };
 
 /// RuTD - A Rust based To-Do list manager for your rushing to-dos
@@ -46,33 +46,9 @@ pub enum Commands {
     /// type, and status
     #[command(visible_aliases = ["l"])]
     List {
-        /// Filter by priority
-        #[arg(value_enum, short, long)]
-        priority: Option<Priority>,
-
-        /// Filter by scope (project name)
-        #[arg(short = 'c', long)]
-        scope: Option<String>,
-
-        /// Filter by task type
-        #[arg(short, long)]
-        task_type: Option<String>,
-
-        /// Filter by status
-        #[arg(value_enum, short, long)]
-        status: Option<TaskStatus>,
-
-        /// Filter by completion date (from)
-        #[arg(long)]
-        from_date: Option<String>,
-
-        /// Filter by completion date (to)
-        #[arg(long)]
-        to_date: Option<String>,
-
-        /// Enable fuzzy matching for description
-        #[arg(short, long)]
-        fuzzy: Option<String>,
+        /// Filter options
+        #[command(flatten)]
+        filter: FilterOptions,
 
         /// Show statistics (counts, total time spent)
         #[arg(long)]
@@ -122,21 +98,9 @@ pub enum Commands {
     /// Remove tasks based on filters
     #[command(visible_aliases = ["purge", "delete", "rm"])]
     Clean {
-        /// Filter by priority
-        #[arg(value_enum, short, long)]
-        priority: Option<Priority>,
-
-        /// Filter by scope (project name)
-        #[arg(short = 'c', long)]
-        scope: Option<String>,
-
-        /// Filter by task type
-        #[arg(short, long)]
-        task_type: Option<String>,
-
-        /// Filter by status
-        #[arg(value_enum, short, long)]
-        status: Option<TaskStatus>,
+        /// Filter options
+        #[command(flatten)]
+        filter: FilterOptions,
 
         /// Filter by completion date (older than n days)
         #[arg(long)]

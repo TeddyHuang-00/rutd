@@ -11,7 +11,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, Duration, Utc};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use log::debug;
-pub use model::{Priority, Task, TaskStatus};
+pub use model::{Priority, Task, TaskStatus, FilterOptions};
 use uuid::Uuid;
 
 use crate::{
@@ -58,71 +58,42 @@ impl TaskManager {
     }
 
     /// List tasks with filtering support
-    pub fn list_tasks(
-        &self,
-        priority_filter: Option<Priority>,
-        scope_filter: Option<&str>,
-        type_filter: Option<String>,
-        status_filter: Option<TaskStatus>,
-        from_date: Option<&str>,
-        to_date: Option<&str>,
-        fuzzy_query: Option<&str>,
-    ) -> Result<Vec<Task>> {
+    pub fn list_tasks(&self, filter_options: &FilterOptions) -> Result<Vec<Task>> {
         let tasks = storage::load_all_tasks(&self.path_config.task_dir())?;
         let filtered_tasks = tasks
             .into_iter()
-            .filter(|task| {
-                Self::matches_filters(
-                    task,
-                    &priority_filter,
-                    &scope_filter,
-                    &type_filter,
-                    &status_filter,
-                    &from_date,
-                    &to_date,
-                    &fuzzy_query,
-                )
-            })
+            .filter(|task| Self::matches_filters(task, filter_options))
             .collect::<Vec<Task>>();
 
         Ok(filtered_tasks)
     }
 
     /// Check if a task matches the filter conditions
-    fn matches_filters(
-        task: &Task,
-        priority_filter: &Option<Priority>,
-        scope_filter: &Option<&str>,
-        type_filter: &Option<String>,
-        status_filter: &Option<TaskStatus>,
-        from_date: &Option<&str>,
-        to_date: &Option<&str>,
-        fuzzy_query: &Option<&str>,
-    ) -> bool {
+    fn matches_filters(task: &Task, filter_options: &FilterOptions) -> bool {
         // Check basic filters
-        if let Some(p) = priority_filter {
+        if let Some(p) = &filter_options.priority {
             if task.priority != *p {
                 return false;
             }
         }
-        if let Some(s) = scope_filter {
+        if let Some(s) = filter_options.scope_ref() {
             if task.scope.as_deref() != Some(s) {
                 return false;
             }
         }
-        if let (Some(t), Some(task_type)) = (type_filter, &task.task_type) {
+        if let (Some(t), Some(task_type)) = (&filter_options.task_type, &task.task_type) {
             if task_type != t {
                 return false;
             }
         }
-        if let Some(st) = status_filter {
+        if let Some(st) = &filter_options.status {
             if task.status != *st {
                 return false;
             }
         }
 
         // Check date range filters
-        if let Some(from) = from_date {
+        if let Some(from) = filter_options.date_from_ref() {
             if let Some(completed_at) = &task.completed_at {
                 if let (Ok(from_date), Ok(completed_date)) = (
                     DateTime::parse_from_rfc3339(from),
@@ -138,7 +109,7 @@ impl TaskManager {
             }
         }
 
-        if let Some(to) = to_date {
+        if let Some(to) = filter_options.date_to_ref() {
             if let Some(completed_at) = &task.completed_at {
                 if let (Ok(to_date), Ok(completed_date)) = (
                     DateTime::parse_from_rfc3339(to),
@@ -152,7 +123,7 @@ impl TaskManager {
         }
 
         // Check fuzzy matching on description
-        if let Some(query) = fuzzy_query {
+        if let Some(query) = filter_options.fuzzy_ref() {
             if !query.is_empty() {
                 let matcher = SkimMatcherV2::default();
                 if matcher.fuzzy_match(&task.description, query).is_none() {
@@ -411,24 +382,13 @@ impl TaskManager {
     /// Clean tasks based on filters
     pub fn clean_tasks(
         &self,
-        priority_filter: Option<Priority>,
-        scope_filter: Option<&str>,
-        type_filter: Option<String>,
-        status_filter: Option<TaskStatus>,
+        filter_options: &FilterOptions,
         older_than: Option<u32>,
         force: bool,
         display_manager: &DisplayManager,
     ) -> Result<usize> {
         // Get tasks matching filters
-        let tasks = self.list_tasks(
-            priority_filter,
-            scope_filter,
-            type_filter.clone(),
-            status_filter,
-            None,
-            None,
-            None,
-        )?;
+        let tasks = self.list_tasks(filter_options)?;
 
         // Filter by age if specified
         let tasks = if let Some(days) = older_than {

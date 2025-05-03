@@ -1,6 +1,6 @@
 use std::fmt;
 
-use clap::ValueEnum;
+use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 
 // FIXME: Visible aliases for value enum is not yet supported in clap, see
@@ -56,6 +56,60 @@ impl fmt::Display for TaskStatus {
             TaskStatus::Done => write!(f, "Done"),
             TaskStatus::Aborted => write!(f, "Aborted"),
         }
+    }
+}
+
+/// Filter options for task queries
+#[derive(Debug, Clone, Default, Args)]
+pub struct FilterOptions {
+    /// Filter by priority
+    #[arg(value_enum, short, long)]
+    pub priority: Option<Priority>,
+
+    /// Filter by scope (project name)
+    #[arg(short = 'c', long)]
+    pub scope: Option<String>,
+
+    /// Filter by task type
+    #[arg(short, long)]
+    pub task_type: Option<String>,
+
+    /// Filter by status
+    #[arg(value_enum, short, long)]
+    pub status: Option<TaskStatus>,
+
+    /// Filter by completion date (from)
+    #[arg(long)]
+    pub date_from: Option<String>,
+
+    /// Filter by completion date (to)
+    #[arg(long)]
+    pub date_to: Option<String>,
+
+    /// Enable fuzzy matching for description
+    #[arg(short, long)]
+    pub fuzzy: Option<String>,
+}
+
+impl FilterOptions {
+    /// Get a scope reference if it exists
+    pub fn scope_ref(&self) -> Option<&str> {
+        self.scope.as_deref()
+    }
+
+    /// Get a fuzzy query reference if it exists
+    pub fn fuzzy_ref(&self) -> Option<&str> {
+        self.fuzzy.as_deref()
+    }
+
+    /// Get a data_from reference if it exists
+    pub fn date_from_ref(&self) -> Option<&str> {
+        self.date_from.as_deref()
+    }
+
+    /// Get a date_to reference if it exists
+    pub fn date_to_ref(&self) -> Option<&str> {
+        self.date_to.as_deref()
     }
 }
 

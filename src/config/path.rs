@@ -39,10 +39,6 @@ impl Default for PathConfig {
 }
 
 impl PathConfig {
-    pub fn root_dir(&self) -> PathBuf {
-        self.root_dir.clone()
-    }
-
     pub fn task_dir(&self) -> PathBuf {
         self.root_dir.join(&self.tasks_dir)
     }
