@@ -5,6 +5,23 @@ use chrono::{DateTime, Datelike, Days, Local, Months, NaiveDate, TimeZone, Weekd
 use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 
+const DATE_LONG_HELP: &str = "
+Date range format: [<date>]..[<date>] or <date>
+
+<date> format:
+1. Absolute: YYYY/MM/DD, YYYY/MM, YYYY.
+2. Relative: [<num>]d, [<num>]w, [<num>]m, [<num>]y; d for days, w for
+   weeks, m for months, y for years. <num> defaults to 0, meaning the
+   current cycle.
+
+Relative format also supports:
+1. '+<date>': exact offset from the current date. Default behavior is to
+   round the date to the beginning of the cycle if used as start or the
+   end of the cycle if used as end.
+2. !!!WIP!!! Combinations: e.g., '5d3w', '+1m2d', etc. The last date
+   unit is used to determine the cycle for rounding in non-exact mode.
+   NOTE: This is WIP, not yet available.";
+
 // FIXME: Visible aliases for value enum is not yet supported in clap, see
 // https://github.com/clap-rs/clap/pull/5480
 /// Task Priority
@@ -80,32 +97,32 @@ pub struct FilterOptions {
     #[arg(value_enum, short, long)]
     pub status: Option<TaskStatus>,
 
-    /// Filter by date range
-    ///
-    /// Date range format:
-    /// 1. <date>-<date> (e.g., '2023/01/01-2023/01/31' means from Jan 1, 2023 to
-    ///    Jan 31, 2023)
-    /// 2. <date>- (e.g., '5d-' means from 5 days ago to now)
-    /// 3. -<date> (e.g., '-2023' means earlier than end of year 2023)
-    /// 4. <date> (e.g., 'w' means current the week)
-    ///
-    /// Various date formats are supported:
-    /// 1. Absolute date: YYYY/MM/DD, YYYY/MM, YYYY.
-    /// 2. Relative date: <num>d, <num>w, <num>m, <num>y; num is a non-negative
-    ///    integer, d for days, w for weeks, m for months, y for years. If num
-    ///    is omitted, it defaults to 0, meaning the current cycle.
-    ///
-    /// Relative date also supports:
-    /// 1. '+<date>' to specify an exact offset from the current date. This
-    ///    changes the default behavior of the date range to rounded to the
-    ///    beginning of the cycle. e.g., '5d' means 5 days ago, but the time
-    ///    part is set to 00:00:00, while '+5d' means 5 days ago at the exact
-    ///    time.
-    /// 2. Combination of relative dates, e.g., '5d3w', '+1m2d', etc. The last
-    ///    date unit is used to determine the cycle for rounding in non-exact
-    ///    mode. NOTE: This is WIP, not yet available.
-    #[arg(short, long, value_parser = parse_date_range)]
-    pub date_range: Option<DateRange>,
+    /// Filter by creation date range
+    #[arg(
+        short = 'a', long,
+        value_parser = parse_date_range,
+        allow_hyphen_values = true,
+        long_help = DATE_LONG_HELP
+    )]
+    pub creation_time: Option<DateRange>,
+
+    /// Filter by last update date range
+    #[arg(
+        short, long,
+        value_parser = parse_date_range,
+        allow_hyphen_values = true,
+        long_help = DATE_LONG_HELP
+    )]
+    pub update_time: Option<DateRange>,
+
+    /// Filter by completion date range, including cancelled tasks
+    #[arg(
+        short = 'd', long,
+        value_parser = parse_date_range,
+        allow_hyphen_values = true,
+        long_help = DATE_LONG_HELP
+    )]
+    pub completion_time: Option<DateRange>,
 
     /// Enable fuzzy matching for description
     #[arg(short, long)]
@@ -119,6 +136,38 @@ pub struct DateRange {
     pub from: Option<DateTime<Local>>,
     /// End date limit (None if no upper bound)
     pub to: Option<DateTime<Local>>,
+}
+
+impl TryFrom<&str> for DateRange {
+    type Error = anyhow::Error;
+
+    fn try_from(range_str: &str) -> Result<Self> {
+        let parts: Vec<&str> = range_str.split('-').collect();
+        let now = Local::now();
+        match *parts.as_slice() {
+            // Single date - treat as exact day range
+            [start] => {
+                let from = Some(parse_date(start, now, false)?);
+                let to = Some(parse_date(start, now, true)?);
+                Ok(DateRange { from, to })
+            }
+            // Start-end range
+            [start, end] => {
+                let from = if start.is_empty() {
+                    None
+                } else {
+                    Some(parse_date(start, now, false)?)
+                };
+                let to = if end.is_empty() {
+                    None
+                } else {
+                    Some(parse_date(end, now, true)?)
+                };
+                Ok(DateRange { from, to })
+            }
+            _ => anyhow::bail!("Invalid date range format: {}", range_str),
+        }
+    }
 }
 
 /// Try parsing the date string from the current date
@@ -236,7 +285,7 @@ fn parse_relative_date<Tz: TimeZone>(
         // meaning the current cycle
         0
     } else {
-        match date_str[..date_str.len() - 1].parse::<i64>() {
+        match date_str.parse::<i64>() {
             // If a number is specified, it must be positive
             Ok(num) if num.is_positive() => num as u32,
             _ => anyhow::bail!("Invalid number in date string: {}", date_str),
@@ -302,38 +351,6 @@ fn parse_relative_date<Tz: TimeZone>(
 // Parse date range from string for clap
 fn parse_date_range(range_str: &str) -> Result<DateRange> {
     DateRange::try_from(range_str)
-}
-
-impl TryFrom<&str> for DateRange {
-    type Error = anyhow::Error;
-
-    fn try_from(range_str: &str) -> Result<Self> {
-        let parts: Vec<&str> = range_str.split('-').collect();
-        let now = Local::now();
-        match *parts.as_slice() {
-            // Single date - treat as exact day range
-            [start] => {
-                let from = Some(parse_date(start, now, false)?);
-                let to = Some(parse_date(start, now, true)?);
-                Ok(DateRange { from, to })
-            }
-            // Start-end range
-            [start, end] => {
-                let from = if start.is_empty() {
-                    None
-                } else {
-                    Some(parse_date(start, now, false)?)
-                };
-                let to = if end.is_empty() {
-                    None
-                } else {
-                    Some(parse_date(end, now, true)?)
-                };
-                Ok(DateRange { from, to })
-            }
-            _ => anyhow::bail!("Invalid date range format: {}", range_str),
-        }
-    }
 }
 
 /// Task Structure

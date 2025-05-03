@@ -11,6 +11,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, Local};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use log::debug;
+use model::DateRange;
 pub use model::{FilterOptions, Priority, Task, TaskStatus};
 use uuid::Uuid;
 
@@ -68,6 +69,15 @@ impl TaskManager {
         Ok(filtered_tasks)
     }
 
+    /// Check if time fits in the date range
+    fn is_time_in_range(time: &str, range: &DateRange) -> bool {
+        let time = DateTime::parse_from_rfc3339(time)
+            .unwrap()
+            .with_timezone(&Local);
+        range.from.map(|from| time >= from).unwrap_or(true)
+            && range.to.map(|to| time < to).unwrap_or(true)
+    }
+
     /// Check if a task matches the filter conditions
     fn matches_filters(task: &Task, filter_options: &FilterOptions) -> bool {
         // Check basic filters
@@ -92,32 +102,33 @@ impl TaskManager {
             }
         }
 
-        // Get the date range from filter options
-        if let Some(date_range) = &filter_options.date_range {
+        // Check creation time
+        if let Some(date_range) = &filter_options.creation_time {
+            // Check creation date against date range
+            if !Self::is_time_in_range(&task.created_at, date_range) {
+                return false;
+            }
+        }
+
+        // Check update time
+        if let Some(date_range) = &filter_options.update_time {
+            // Check if the task has been updated, if not, use created_at
+            let updated_at = task.updated_at.as_deref().unwrap_or(&task.created_at);
+            // Check update date against date range
+            if !Self::is_time_in_range(updated_at, date_range) {
+                return false;
+            }
+        }
+
+        // Check completion time
+        if let Some(date_range) = &filter_options.completion_time {
+            // Check if the task is completed
+            let Some(completed_at) = &task.completed_at else {
+                return false;
+            };
+
             // Check completion date against date range
-            if let Some(completed_at) = &task.completed_at {
-                if let Ok(completed_date) = DateTime::parse_from_rfc3339(completed_at) {
-                    let completed_at_local = completed_date.with_timezone(&Local);
-
-                    // Check lower bound if exists
-                    if let Some(from) = date_range.from {
-                        if completed_at_local < from {
-                            return false;
-                        }
-                    }
-
-                    // Check upper bound if exists
-                    if let Some(to) = date_range.to {
-                        if completed_at_local > to {
-                            return false;
-                        }
-                    }
-                }
-            } else if (date_range.from.is_some() || date_range.to.is_some())
-                && (task.status == TaskStatus::Done || task.status == TaskStatus::Aborted)
-            {
-                // If date range is specified and the task is completed but has no completion
-                // date, exclude it
+            if !Self::is_time_in_range(completed_at, date_range) {
                 return false;
             }
         }
