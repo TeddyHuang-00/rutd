@@ -44,7 +44,7 @@ impl Config {
             .split_once('-')
             .map_or(env!("CARGO_PKG_NAME"), |(name, _)| name)
             .to_string();
-        let config_file = format!("~/.{}/config.toml", pkg_name);
+        let config_file = format!("~/.{pkg_name}/config.toml");
         let env_var_prefix = pkg_name.to_uppercase() + "_";
 
         Ok(Figment::new()
