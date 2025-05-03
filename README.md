@@ -4,6 +4,50 @@ RuTD stands for "Rush To Do" or "Rust To Do". It is a simple command line tool f
 
 ⚠️ RuTD is a work in progress and is not yet feature complete.
 
+## Shell completion
+
+RuTD supports shell completion with `clap_complete`. For better experience, RuTD uses dynamic completion for commands, so it is recommended to source the completion script in your shell configuration file. Specific instructions for each shell are provided below.
+
+### Bash
+
+Add the following line to your `~/.bashrc` or `~/.bash_profile`:
+
+```bash
+source <(COMPLETE=bash your_program)
+```
+
+### Zsh
+
+Add the following line to your `~/.zshrc`:
+
+```zsh
+source <(COMPLETE=zsh your_program)
+```
+
+### Fish
+
+Add the following line to your `~/.config/fish/config.fish`:
+
+```fish
+source (COMPLETE=fish your_program | psub)
+```
+
+### Elvish
+
+Add the following line to your `~/.elvish/rc.elv`:
+
+```elvish
+eval (E:COMPLETE=elvish your_program | slurp)
+```
+
+### Xonsh
+
+Install `fish` shell and follow the steps for [`fish` completion](#fish). Then, install `xonsh-fish-completer` and add the following line to your `~/.xonshrc`:
+
+```xsh
+xontrib load fish_completer
+```
+
 ## Roadmap
 
 Below is the development roadmap for the RuTD project, based on the planned phased feature rollout:
