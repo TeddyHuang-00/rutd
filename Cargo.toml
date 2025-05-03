@@ -15,7 +15,7 @@ repository.workspace = true
 license.workspace = true
 
 [workspace.package]
-version = "0.2.1-rc.1"
+version = "0.2.1-rc.2"
 edition = "2024"
 authors = ["Teddy Huang <teddyhuangnan@gmail.com>"]
 repository = "https://github.com/TeddyHuang-00/rutd"
