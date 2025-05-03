@@ -102,10 +102,6 @@ pub enum Commands {
         #[command(flatten)]
         filter: FilterOptions,
 
-        /// Filter by completion date (older than n days)
-        #[arg(long)]
-        older_than: Option<u32>,
-
         /// Confirm deletion without prompting
         #[arg(short, long)]
         force: bool,

@@ -8,10 +8,10 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow, bail};
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, Local};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use log::debug;
-pub use model::{Priority, Task, TaskStatus, FilterOptions};
+pub use model::{FilterOptions, Priority, Task, TaskStatus};
 use uuid::Uuid;
 
 use crate::{
@@ -76,7 +76,7 @@ impl TaskManager {
                 return false;
             }
         }
-        if let Some(s) = filter_options.scope_ref() {
+        if let Some(s) = &filter_options.scope {
             if task.scope.as_deref() != Some(s) {
                 return false;
             }
@@ -92,38 +92,38 @@ impl TaskManager {
             }
         }
 
-        // Check date range filters
-        if let Some(from) = filter_options.date_from_ref() {
-            if let Some(completed_at) = &task.completed_at {
-                if let (Ok(from_date), Ok(completed_date)) = (
-                    DateTime::parse_from_rfc3339(from),
-                    DateTime::parse_from_rfc3339(completed_at),
-                ) {
-                    if completed_date < from_date {
-                        return false;
-                    }
-                }
-            } else if task.status == TaskStatus::Done || task.status == TaskStatus::Aborted {
-                // If the task is completed but has no completion date, exclude it
-                return false;
-            }
-        }
+        // Get the date range from filter options
+        let date_range = &filter_options.date_range;
 
-        if let Some(to) = filter_options.date_to_ref() {
-            if let Some(completed_at) = &task.completed_at {
-                if let (Ok(to_date), Ok(completed_date)) = (
-                    DateTime::parse_from_rfc3339(to),
-                    DateTime::parse_from_rfc3339(completed_at),
-                ) {
-                    if completed_date > to_date {
+        // Check completion date against date range
+        if let Some(completed_at) = &task.completed_at {
+            if let Ok(completed_date) = DateTime::parse_from_rfc3339(completed_at) {
+                let completed_at_local = completed_date.with_timezone(&Local);
+
+                // Check lower bound if exists
+                if let Some(from) = date_range.from {
+                    if completed_at_local < from {
+                        return false;
+                    }
+                }
+
+                // Check upper bound if exists
+                if let Some(to) = date_range.to {
+                    if completed_at_local > to {
                         return false;
                     }
                 }
             }
+        } else if (date_range.from.is_some() || date_range.to.is_some())
+            && (task.status == TaskStatus::Done || task.status == TaskStatus::Aborted)
+        {
+            // If date range is specified and the task is completed but has no completion
+            // date, exclude it
+            return false;
         }
 
         // Check fuzzy matching on description
-        if let Some(query) = filter_options.fuzzy_ref() {
+        if let Some(query) = &filter_options.fuzzy {
             if !query.is_empty() {
                 let matcher = SkimMatcherV2::default();
                 if matcher.fuzzy_match(&task.description, query).is_none() {
@@ -145,33 +145,35 @@ impl TaskManager {
         }
 
         // Check if this is the active task
-        let is_active_task = match active_task::load_active_task(&self.path_config.active_task_file())? {
-            Some(active) => {
-                if active.task_id == task_id {
-                    // Calculate time spent using the active task record
-                    let started_time = DateTime::parse_from_rfc3339(&active.started_at)
-                        .context("Failed to parse started_at time from active task record")?;
-                    let now = Utc::now();
-                    let duration = now.signed_duration_since(started_time.with_timezone(&Utc));
+        let is_active_task =
+            match active_task::load_active_task(&self.path_config.active_task_file())? {
+                Some(active) => {
+                    if active.task_id == task_id {
+                        // Calculate time spent using the active task record
+                        let started_time = DateTime::parse_from_rfc3339(&active.started_at)
+                            .context("Failed to parse started_at time from active task record")?;
+                        let now = Local::now();
+                        let duration =
+                            now.signed_duration_since(started_time.with_timezone(&Local));
 
-                    // Calculate total seconds spent
-                    let seconds_spent = duration.num_seconds().max(0) as u64;
+                        // Calculate total seconds spent
+                        let seconds_spent = duration.num_seconds().max(0) as u64;
 
-                    // Add to existing time_spent or initialize it
-                    task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
+                        // Add to existing time_spent or initialize it
+                        task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
 
-                    true
-                } else {
-                    false
+                        true
+                    } else {
+                        false
+                    }
                 }
-            }
-            None => false,
-        };
+                None => false,
+            };
 
         // Update task status and timestamps
         task.status = TaskStatus::Done;
-        task.updated_at = Some(chrono::Utc::now().to_rfc3339());
-        task.completed_at = Some(chrono::Utc::now().to_rfc3339());
+        task.updated_at = Some(Local::now().to_rfc3339());
+        task.completed_at = Some(Local::now().to_rfc3339());
 
         // Save the updated task
         storage::save_task(&self.path_config.task_dir(), &task)?;
@@ -215,7 +217,7 @@ impl TaskManager {
         }
 
         // Get current time
-        let now = chrono::Utc::now().to_rfc3339();
+        let now = Local::now().to_rfc3339();
 
         // Create and save active task record
         let active = ActiveTask::new(task.id.clone(), now);
@@ -228,7 +230,8 @@ impl TaskManager {
     /// Stop working on a task
     pub fn stop_task(&self) -> Result<String> {
         // Check if there's an active task
-        let Some(active_task_info) = active_task::load_active_task(&self.path_config.active_task_file())?
+        let Some(active_task_info) =
+            active_task::load_active_task(&self.path_config.active_task_file())?
         else {
             // No active task found
             bail!("No active task found. Task might not be in progress.")
@@ -240,8 +243,8 @@ impl TaskManager {
         // Calculate time spent using the active task record
         let started_time = DateTime::parse_from_rfc3339(&active_task_info.started_at)
             .context("Failed to parse started_at time from active task record")?;
-        let now = Utc::now();
-        let duration = now.signed_duration_since(started_time.with_timezone(&Utc));
+        let now = Local::now();
+        let duration = now.signed_duration_since(started_time.with_timezone(&Local));
 
         // Calculate total seconds spent
         let seconds_spent = duration.num_seconds().max(0) as u64;
@@ -250,7 +253,7 @@ impl TaskManager {
         task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
 
         // Update task status and timestamps
-        task.updated_at = Some(chrono::Utc::now().to_rfc3339());
+        task.updated_at = Some(Local::now().to_rfc3339());
 
         // Save the updated task
         storage::save_task(&self.path_config.task_dir(), &task)?;
@@ -290,33 +293,35 @@ impl TaskManager {
         }
 
         // Check if this is the active task
-        let is_active_task = match active_task::load_active_task(&self.path_config.active_task_file())? {
-            Some(active) => {
-                if active.task_id == task_id {
-                    // Calculate time spent using the active task record
-                    let started_time = DateTime::parse_from_rfc3339(&active.started_at)
-                        .context("Failed to parse started_at time from active task record")?;
-                    let now = Utc::now();
-                    let duration = now.signed_duration_since(started_time.with_timezone(&Utc));
+        let is_active_task =
+            match active_task::load_active_task(&self.path_config.active_task_file())? {
+                Some(active) => {
+                    if active.task_id == task_id {
+                        // Calculate time spent using the active task record
+                        let started_time = DateTime::parse_from_rfc3339(&active.started_at)
+                            .context("Failed to parse started_at time from active task record")?;
+                        let now = Local::now();
+                        let duration =
+                            now.signed_duration_since(started_time.with_timezone(&Local));
 
-                    // Calculate total seconds spent
-                    let seconds_spent = duration.num_seconds().max(0) as u64;
+                        // Calculate total seconds spent
+                        let seconds_spent = duration.num_seconds().max(0) as u64;
 
-                    // Add to existing time_spent or initialize it
-                    task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
+                        // Add to existing time_spent or initialize it
+                        task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
 
-                    true
-                } else {
-                    false
+                        true
+                    } else {
+                        false
+                    }
                 }
-            }
-            None => false,
-        };
+                None => false,
+            };
 
         // Update task status and timestamps
         task.status = TaskStatus::Aborted;
-        task.updated_at = Some(chrono::Utc::now().to_rfc3339());
-        task.completed_at = Some(chrono::Utc::now().to_rfc3339());
+        task.updated_at = Some(Local::now().to_rfc3339());
+        task.completed_at = Some(Local::now().to_rfc3339());
 
         // Save the updated task
         storage::save_task(&self.path_config.task_dir(), &task)?;
@@ -369,7 +374,7 @@ impl TaskManager {
             // Only update if description has changed
             if new_description != task.description {
                 task.description = new_description;
-                task.updated_at = Some(chrono::Utc::now().to_rfc3339());
+                task.updated_at = Some(Local::now().to_rfc3339());
                 storage::save_task(&self.path_config.task_dir(), &task)?;
             }
 
@@ -383,32 +388,11 @@ impl TaskManager {
     pub fn clean_tasks(
         &self,
         filter_options: &FilterOptions,
-        older_than: Option<u32>,
         force: bool,
         display_manager: &DisplayManager,
     ) -> Result<usize> {
         // Get tasks matching filters
         let tasks = self.list_tasks(filter_options)?;
-
-        // Filter by age if specified
-        let tasks = if let Some(days) = older_than {
-            let now = Utc::now();
-            let cutoff_date = now - Duration::days(days as i64);
-
-            tasks
-                .into_iter()
-                .filter(|task| {
-                    if let Some(completed_at) = &task.completed_at {
-                        if let Ok(completed_date) = DateTime::parse_from_rfc3339(completed_at) {
-                            return completed_date.with_timezone(&Utc) < cutoff_date;
-                        }
-                    }
-                    false
-                })
-                .collect()
-        } else {
-            tasks
-        };
 
         let count = tasks.len();
 

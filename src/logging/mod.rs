@@ -142,7 +142,7 @@ impl Log for FileLogger {
 
         if let Some(file) = &self.file {
             if let Ok(mut file) = file.lock() {
-                let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f");
+                let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
                 let _ = writeln!(
                     file,
                     "[{}] [{}] [{}] {}",

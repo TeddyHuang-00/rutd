@@ -26,11 +26,9 @@ fn main() -> ExitCode {
     };
 
     // Initialize logging system
-    if let Err(e) = logging::init_logger(
-        cli.verbose,
-        config.path.log_file(),
-        config.log.max_history,
-    ) {
+    if let Err(e) =
+        logging::init_logger(cli.verbose, config.path.log_file(), config.log.max_history)
+    {
         eprintln!("{}", e);
         return ExitCode::FAILURE;
     }
@@ -75,20 +73,14 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        cli::commands::Commands::List {
-            filter,
-            stats,
-        } => {
+        cli::commands::Commands::List { filter, stats } => {
             trace!("List tasks");
             // Use the FilterOptions struct instead of individual parameters
 
             // Use TaskManager to list tasks
-            let Ok(tasks) = task_manager
-                .list_tasks(filter)
-                .inspect_err(|e| {
-                    display_manager.show_failure(&format!("Fail to load tasks: {}", e));
-                })
-            else {
+            let Ok(tasks) = task_manager.list_tasks(filter).inspect_err(|e| {
+                display_manager.show_failure(&format!("Fail to load tasks: {}", e));
+            }) else {
                 return ExitCode::FAILURE;
             };
 
@@ -181,23 +173,14 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        cli::commands::Commands::Clean {
-            filter,
-            older_than,
-            force,
-        } => {
+        cli::commands::Commands::Clean { filter, force } => {
             trace!("Clean tasks");
             // Use the FilterOptions struct instead of individual parameters
             debug!("Force clean without confirmation: {}", force);
 
             // Use TaskManager to clean tasks
             if task_manager
-                .clean_tasks(
-                    filter,
-                    *older_than,
-                    *force,
-                    &display_manager,
-                )
+                .clean_tasks(filter, *force, &display_manager)
                 .inspect(|count| display_manager.show_success(&format!("Cleaned {} tasks", count)))
                 .inspect_err(|e| {
                     display_manager.show_failure(&format!("Fail to clean tasks: {}", e))
