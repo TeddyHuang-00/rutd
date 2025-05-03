@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use rutd_core::{
     git::MergeStrategy,
-    task::{Priority, model::FilterOptions},
+    task::{FilterOptions, Priority},
 };
 
 /// RuTD - A Rust based To-Do list manager for your rushing to-dos
@@ -31,10 +31,12 @@ pub enum Commands {
         #[arg(value_enum, short, long, default_value_t = Priority::Normal)]
         priority: Priority,
 
+        // TODO: Add completion candidate based on configuration and present scopes
         /// Task scope (project name)
         #[arg(short, long)]
         scope: Option<String>,
 
+        // TODO: Add completion candidate based on configuration and present task types
         /// Task type (e.g., feat, fix, other, etc.)
         #[arg(short, long)]
         task_type: Option<String>,
