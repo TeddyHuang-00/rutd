@@ -13,6 +13,36 @@ on:
   workflow_dispatch:
 
 jobs:
+  format:
+    name: Code Format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - name: Run rustfmt
+        run: cargo +nightly fmt --all -- --check
+
+  check:
+    name: Clippy Check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Run Cargo
+        run: cargo clippy --all --workspace --all-targets -- -Dwarnings
+
+  unit-test:
+    name: Unit Test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Run Cargo
+        run: cargo test --workspace --all-targets
+
   test-build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
