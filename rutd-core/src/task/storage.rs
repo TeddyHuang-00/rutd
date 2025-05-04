@@ -10,7 +10,12 @@ use super::Task;
 use crate::git::repo::GitRepo;
 
 /// Save task to TOML file
-pub fn save_task(root_dir: &Path, task: &Task) -> Result<()> {
+pub fn save_task(
+    root_dir: &Path,
+    task: &Task,
+    after_action: &str,
+    description: &str,
+) -> Result<()> {
     // Make sure the tasks directory exists
     fs::create_dir_all(root_dir)?;
 
@@ -28,7 +33,15 @@ pub fn save_task(root_dir: &Path, task: &Task) -> Result<()> {
     file.write_all(toml_string.as_bytes())?;
 
     // Automatically commit changes
-    let commit_message = GitRepo::generate_commit_message(&task.id.to_string(), "Update task");
+    let scope = task.scope.as_deref();
+    let task_type = task.task_type.as_deref();
+    let commit_message = GitRepo::generate_commit_message(
+        after_action,
+        scope,
+        task_type,
+        description,
+        task.id.as_str(),
+    );
     git_repo.commit_changes(&commit_message)?;
 
     Ok(())
@@ -128,15 +141,30 @@ pub fn load_all_tasks(root_dir: &Path) -> Result<Vec<Task>> {
 }
 
 /// Delete task file
-pub fn delete_task(root_dir: &Path, task_id: &str) -> Result<()> {
-    let file = locate_task(root_dir, task_id)?;
-    fs::remove_file(file)?;
+pub fn delete_task(root_dir: &Path, task_ids: &[&str]) -> Result<()> {
+    let mut ids = Vec::new();
+    for task_id in task_ids {
+        // First load the task to get its scope and type before deleting
+        let file = locate_task(root_dir, task_id)?;
+
+        // Read task data to get scope and type
+        let mut file_content = String::new();
+        File::open(&file)?.read_to_string(&mut file_content)?;
+        let task: Task = toml::from_str(&file_content)?;
+
+        // Save the id for commit message
+        ids.push(task.id.clone());
+
+        // Now delete the file
+        fs::remove_file(file)?;
+    }
 
     // Initialize the Git repository
     let git_repo = GitRepo::init(root_dir)?;
 
-    // Automatically commit changes
-    let commit_message = GitRepo::generate_commit_message(task_id, "Delete task");
+    // Automatically commit changes with improved commit message
+    let commit_message =
+        GitRepo::generate_commit_message("delete", None, None, "Delete tasks", &ids.join("\n"));
     git_repo.commit_changes(&commit_message)?;
     Ok(())
 }

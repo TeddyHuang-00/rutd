@@ -101,8 +101,25 @@ impl GitRepo {
     }
 
     /// Generate commit message using Conventional Commits format
-    pub fn generate_commit_message(task_id: &str, action: &str) -> String {
-        format!("chore({task_id}): {action}")
+    ///
+    /// Format: <action>(<scope>|<type>): <short description> <task_id>
+    /// - action: The type of change (e.g., feat, fix, chore)
+    /// - scope: The scope of the change (from task.scope or "task")
+    /// - type: The type of the task (from task.task_type if available)
+    /// - short description: Brief description of the change
+    /// - task_id: The ID of the task
+    pub fn generate_commit_message(
+        action: &str,
+        scope: Option<&str>,
+        task_type: Option<&str>,
+        description: &str,
+        task_id: &str,
+    ) -> String {
+        // Determine the appropriate scope string for the commit
+        let scope = scope.unwrap_or("-");
+        let task_type = task_type.unwrap_or("-");
+
+        format!("{action}({scope}|{task_type}): {description}\n\n{task_id}")
     }
 
     /// Sync with remote repository (fetch, pull, push)

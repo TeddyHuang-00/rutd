@@ -128,7 +128,7 @@ impl TaskManager {
             scope,
             task_type,
         );
-        storage::save_task(&self.path_config.task_dir(), &task)?;
+        storage::save_task(&self.path_config.task_dir(), &task, "create", "Create task")?;
         Ok(id)
     }
 
@@ -184,7 +184,12 @@ impl TaskManager {
         task.completed_at = Some(Local::now().to_rfc3339());
 
         // Save the updated task
-        storage::save_task(&self.path_config.task_dir(), &task)?;
+        storage::save_task(
+            &self.path_config.task_dir(),
+            &task,
+            "finish",
+            "Mark task as done",
+        )?;
 
         // If this was the active task, clear the active task record
         if is_active_task {
@@ -261,7 +266,12 @@ impl TaskManager {
         task.updated_at = Some(Local::now().to_rfc3339());
 
         // Save the updated task
-        storage::save_task(&self.path_config.task_dir(), &task)?;
+        storage::save_task(
+            &self.path_config.task_dir(),
+            &task,
+            "update",
+            "Update time spent on task",
+        )?;
 
         // Clear the active task record
         active_task::clear_active_task(&self.path_config.active_task_file())?;
@@ -324,7 +334,7 @@ impl TaskManager {
         task.completed_at = Some(Local::now().to_rfc3339());
 
         // Save the updated task
-        storage::save_task(&self.path_config.task_dir(), &task)?;
+        storage::save_task(&self.path_config.task_dir(), &task, "cancel", "Cancel task")?;
 
         // If this was the active task, clear the active task record
         if is_active_task {
@@ -358,7 +368,12 @@ impl TaskManager {
         if new_description != task.description {
             task.description = new_description;
             task.updated_at = Some(Local::now().to_rfc3339());
-            storage::save_task(&self.path_config.task_dir(), &task)?;
+            storage::save_task(
+                &self.path_config.task_dir(),
+                &task,
+                "update",
+                "Update task description",
+            )?;
         }
 
         Ok(task.id)
@@ -384,10 +399,14 @@ impl TaskManager {
             }
         }
 
-        // Delete tasks
-        for task in tasks {
-            storage::delete_task(&self.path_config.task_dir(), &task.id)?;
-        }
+        // Batch delete tasks
+        storage::delete_task(
+            &self.path_config.task_dir(),
+            &tasks
+                .iter()
+                .map(|task| task.id.as_str())
+                .collect::<Vec<_>>(),
+        )?;
 
         Ok(count)
     }
