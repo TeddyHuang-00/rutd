@@ -6,7 +6,8 @@ use std::{
 
 use anyhow::Result;
 
-use crate::{git::repo::GitRepo, task::model::Task};
+use super::Task;
+use crate::git::repo::GitRepo;
 
 /// Save task to TOML file
 pub fn save_task(root_dir: &Path, task: &Task) -> Result<()> {

@@ -5,7 +5,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use log::{debug, info, trace};
 use serde::{Deserialize, Serialize};
 
 /// Active Task information
@@ -29,7 +28,7 @@ impl ActiveTask {
 
 /// Save the currently active task
 pub fn save_active_task(file_path: &Path, active_task: &ActiveTask) -> Result<()> {
-    debug!("Saving active task to {}", file_path.display());
+    log::debug!("Saving active task to {}", file_path.display());
 
     // Make sure the directory exists
     if let Some(parent) = file_path.parent() {
@@ -48,10 +47,10 @@ pub fn save_active_task(file_path: &Path, active_task: &ActiveTask) -> Result<()
 
 /// Load the currently active task, if any
 pub fn load_active_task(file_path: &Path) -> Result<Option<ActiveTask>> {
-    trace!("Checking for active task at {}", file_path.display());
+    log::trace!("Checking for active task at {}", file_path.display());
 
     if !file_path.exists() {
-        debug!("No active task file found");
+        log::debug!("No active task file found");
         return Ok(None);
     }
 
@@ -73,13 +72,13 @@ pub fn load_active_task(file_path: &Path) -> Result<Option<ActiveTask>> {
 /// Clear the active task
 pub fn clear_active_task(file_path: &Path) -> Result<()> {
     if !file_path.exists() {
-        debug!("No active task file to clear");
+        log::debug!("No active task file to clear");
         return Ok(());
     }
 
     // Remove the file
     fs::remove_file(file_path)?;
 
-    info!("Cleared active task");
+    log::info!("Cleared active task");
     Ok(())
 }

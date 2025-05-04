@@ -5,9 +5,9 @@ use git2::{
     Cred, CredentialType, ErrorCode, FetchOptions, FileFavor, IndexAddOption, MergeOptions,
     ObjectType, PushOptions, RemoteCallbacks, Repository, Signature, build::CheckoutBuilder,
 };
-use log::{debug, info};
 
-use crate::{config::GitConfig, git::MergeStrategy};
+use super::MergeStrategy;
+use crate::config::GitConfig;
 
 pub struct GitRepo {
     repo: Repository,
@@ -29,7 +29,7 @@ impl GitRepo {
     /// - branch: Branch to clone (default is "main" or "master")
     pub fn clone<P: AsRef<Path>>(path: P, url: &str, git_config: &GitConfig) -> Result<Self> {
         let path = path.as_ref();
-        info!("Cloning {} to {}", url, path.display());
+        log::info!("Cloning {} to {}", url, path.display());
 
         let git_config = git_config.clone();
 
@@ -48,7 +48,7 @@ impl GitRepo {
         // Clone the project.
         match builder.clone(url, path) {
             Ok(repo) => {
-                info!("Successfully cloned repository");
+                log::info!("Successfully cloned repository");
                 Ok(GitRepo { repo })
             }
             Err(e) => {
@@ -96,7 +96,7 @@ impl GitRepo {
             &parents,
         )?;
 
-        debug!("Created commit: {commit_id}");
+        log::debug!("Created commit: {commit_id}");
         Ok(())
     }
 
@@ -112,11 +112,11 @@ impl GitRepo {
         // Check if we have any remotes
         let remotes = self.repo.remotes()?;
         if remotes.is_empty() {
-            info!("No remote repository configured. Skipping sync.");
+            log::info!("No remote repository configured. Skipping sync.");
             return Ok(());
         }
 
-        info!("Syncing with remote repository...");
+        log::info!("Syncing with remote repository...");
 
         // Set up authentication callbacks
         let mut callbacks = RemoteCallbacks::new();
@@ -133,7 +133,7 @@ impl GitRepo {
         let remote_name = "origin";
 
         // Fetch from remote
-        debug!("Fetching from remote '{remote_name}'");
+        log::debug!("Fetching from remote '{remote_name}'");
         let mut remote = self
             .repo
             .find_remote(remote_name)
@@ -141,11 +141,13 @@ impl GitRepo {
 
         // Attempt to fetch but handle the case where the remote is empty or unreachable
         match remote.fetch(&["master", "main"], Some(&mut fetch_options), None) {
-            Ok(_) => debug!("Successfully fetched from remote"),
+            Ok(_) => log::debug!("Successfully fetched from remote"),
             Err(e) => {
                 // Check if this is a fresh/empty repository error
                 if e.to_string().contains("couldn't find remote ref") {
-                    debug!("Remote repository appears to be empty or the branch doesn't exist yet");
+                    log::debug!(
+                        "Remote repository appears to be empty or the branch doesn't exist yet"
+                    );
                     // Continue with push only
                 } else {
                     // For other errors, return the error
@@ -160,7 +162,7 @@ impl GitRepo {
             Err(e) => {
                 // If HEAD is not yet set (no commits), create an initial commit
                 if matches!(e.code(), ErrorCode::UnbornBranch | ErrorCode::NotFound) {
-                    debug!("No HEAD found, repository might be empty");
+                    log::debug!("No HEAD found, repository might be empty");
                     return Ok(());
                 }
                 return Err(e.into());
@@ -173,7 +175,7 @@ impl GitRepo {
             "master"
         };
 
-        debug!("Current branch: {branch_name}");
+        log::debug!("Current branch: {branch_name}");
 
         // Try to merge remote changes
         let remote_branch = format!("refs/remotes/{remote_name}/{branch_name}");
@@ -183,9 +185,9 @@ impl GitRepo {
             let analysis = self.repo.merge_analysis(&[&annotated_commit])?;
 
             if analysis.0.is_up_to_date() {
-                debug!("Local repository is up to date");
+                log::debug!("Local repository is up to date");
             } else if analysis.0.is_fast_forward() {
-                debug!("Fast-forwarding local repository");
+                log::debug!("Fast-forwarding local repository");
 
                 // Perform the fast-forward
                 let mut reference = self
@@ -198,10 +200,10 @@ impl GitRepo {
                 self.repo
                     .checkout_head(Some(CheckoutBuilder::new().force()))?;
 
-                info!("Successfully pulled changes from remote");
+                log::info!("Successfully pulled changes from remote");
             } else if analysis.0.is_normal() {
                 // Need to perform a merge with possible conflicts
-                debug!("Merge required - analyzing merge strategy");
+                log::debug!("Merge required - analyzing merge strategy");
 
                 // Create merge options
                 let mut merge_opts = MergeOptions::new();
@@ -227,9 +229,9 @@ impl GitRepo {
                 // Handle merge conflicts based on the prefer option
                 let conflicts = self.repo.index()?.conflicts()?.collect::<Vec<_>>();
                 if conflicts.is_empty() {
-                    debug!("Successfully merged remote changes");
+                    log::debug!("Successfully merged remote changes");
                 } else {
-                    debug!("Merge conflicts detected");
+                    log::debug!("Merge conflicts detected");
                 }
                 for conflict in conflicts {
                     let conflict = conflict?;
@@ -266,13 +268,13 @@ impl GitRepo {
                     .context("Failed to commit merge")?;
             }
         } else {
-            debug!(
+            log::debug!(
                 "Remote branch '{remote_branch}' not found. This might be a new remote repository."
             );
         }
 
         // Push local changes
-        debug!("Pushing to remote '{remote_name}'");
+        log::debug!("Pushing to remote '{remote_name}'");
         let mut callbacks = RemoteCallbacks::new();
         callbacks.credentials(move |url, username, allowed_types| {
             credential(url, username, allowed_types, git_config)
@@ -290,10 +292,10 @@ impl GitRepo {
                 &[format!("refs/heads/{branch_name}")],
                 Some(&mut push_options),
             ) {
-                Ok(_) => info!("Successfully pushed to remote repository"),
+                Ok(_) => log::info!("Successfully pushed to remote repository"),
                 Err(e) => {
                     if e.to_string().contains("non-fast-forward") {
-                        info!(
+                        log::info!(
                             "Cannot push because remote contains work that you do not have locally"
                         );
                         return Err(anyhow::anyhow!(
@@ -305,10 +307,10 @@ impl GitRepo {
                 }
             }
         } else {
-            info!("No commits to push yet");
+            log::info!("No commits to push yet");
         }
 
-        info!("Successfully synced with remote repository");
+        log::info!("Successfully synced with remote repository");
         Ok(())
     }
 
@@ -345,8 +347,8 @@ fn credential(
     allowed_types: CredentialType,
     git_config: &GitConfig,
 ) -> Result<Cred, git2::Error> {
-    debug!("Attempting authentication for URL: {url}");
-    debug!("Allowed credential types: {allowed_types:?}");
+    log::debug!("Attempting authentication for URL: {url}");
+    log::debug!("Allowed credential types: {allowed_types:?}");
 
     // Try SSH key authentication with multiple possible key locations
     if allowed_types.contains(CredentialType::SSH_KEY)
@@ -364,13 +366,13 @@ fn credential(
 
             for key_path in &possible_key_paths {
                 if Path::new(key_path).exists() {
-                    debug!("Trying SSH key: {key_path}");
+                    log::debug!("Trying SSH key: {key_path}");
                     let username = username_from_url.unwrap_or("git");
-                    debug!("Using username: {username}");
+                    log::debug!("Using username: {username}");
 
                     match Cred::ssh_key(username, None, Path::new(key_path), None) {
                         Ok(cred) => return Ok(cred),
-                        Err(e) => debug!("Failed to use SSH key {key_path}: {e}"),
+                        Err(e) => log::debug!("Failed to use SSH key {key_path}: {e}"),
                     }
                 }
             }
@@ -378,7 +380,7 @@ fn credential(
 
         // Also try SSH agent if available
         if allowed_types.contains(CredentialType::SSH_KEY) {
-            debug!("Trying SSH agent authentication");
+            log::debug!("Trying SSH agent authentication");
             if let Ok(cred) = Cred::ssh_key_from_agent(username_from_url.unwrap_or("git")) {
                 return Ok(cred);
             }
@@ -387,7 +389,7 @@ fn credential(
 
     // Try username/password if SSH doesn't work
     if allowed_types.contains(CredentialType::USER_PASS_PLAINTEXT) {
-        debug!("Trying username/password authentication");
+        log::debug!("Trying username/password authentication");
 
         // Use the username from GitConfig or fallback to URL username or "git"
         let username = if git_config.username.is_empty() {
@@ -398,12 +400,12 @@ fn credential(
 
         // Check if we have a password in the GitConfig
         if !git_config.password.is_empty() {
-            debug!("Using username/password from configuration");
+            log::debug!("Using username/password from configuration");
             return Cred::userpass_plaintext(&username, &git_config.password);
         }
     }
 
     // Fall back to default credentials as last resort
-    debug!("Using default credentials (may fail if authentication is required)");
+    log::debug!("Using default credentials (may fail if authentication is required)");
     Cred::default()
 }

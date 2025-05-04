@@ -4,7 +4,6 @@ use std::process::ExitCode;
 
 use clap::Parser;
 use cli::{Cli, Commands, DisplayManager};
-use log::{debug, trace};
 use rutd_core::{Config, Display, TaskManager};
 
 pub fn app() -> ExitCode {
@@ -25,8 +24,8 @@ pub fn app() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    trace!("Received cli args: {cli:?}");
-    trace!("Loaded configuration: {config:?}");
+    log::trace!("Received cli args: {cli:?}");
+    log::trace!("Loaded configuration: {config:?}");
 
     let path_config = config.path;
     let git_config = config.git;
@@ -45,14 +44,14 @@ pub fn app() -> ExitCode {
             scope,
             task_type,
         } => {
-            trace!("Add task command");
-            debug!("Add task: {description}");
-            debug!("Priority: {priority}");
+            log::trace!("Add task command");
+            log::debug!("Add task: {description}");
+            log::debug!("Priority: {priority}");
             if let Some(s) = scope {
-                debug!("Scope: {s}");
+                log::debug!("Scope: {s}");
             }
             if let Some(t) = task_type {
-                debug!("Type: {t}");
+                log::debug!("Type: {t}");
             }
 
             // Use TaskManager to add a new task
@@ -66,7 +65,7 @@ pub fn app() -> ExitCode {
             }
         }
         Commands::List { filter, stats } => {
-            trace!("List tasks");
+            log::trace!("List tasks");
             // Use the FilterOptions struct instead of individual parameters
 
             // Use TaskManager to list tasks
@@ -90,7 +89,7 @@ pub fn app() -> ExitCode {
             }
         }
         Commands::Done { id } => {
-            trace!("Mark task {id} as completed");
+            log::trace!("Mark task {id} as completed");
 
             // Use TaskManager to mark task as completed
             if task_manager
@@ -105,7 +104,7 @@ pub fn app() -> ExitCode {
             }
         }
         Commands::Edit { id } => {
-            trace!("Edit task {id}");
+            log::trace!("Edit task {id}");
 
             // Use TaskManager to edit task description
             if task_manager
@@ -118,7 +117,7 @@ pub fn app() -> ExitCode {
             }
         }
         Commands::Start { id } => {
-            trace!("Start task {id}");
+            log::trace!("Start task {id}");
 
             // Use TaskManager to start a task
             if task_manager
@@ -131,7 +130,7 @@ pub fn app() -> ExitCode {
             }
         }
         Commands::Stop {} => {
-            trace!("Stop active task");
+            log::trace!("Stop active task");
 
             // Use TaskManager to stop the active task
             if task_manager
@@ -145,9 +144,9 @@ pub fn app() -> ExitCode {
         }
         Commands::Abort { id } => {
             if let Some(id) = id {
-                trace!("Abort task {id}");
+                log::trace!("Abort task {id}");
             } else {
-                trace!("Abort active task");
+                log::trace!("Abort active task");
             }
 
             // Use TaskManager to abort a task
@@ -161,9 +160,9 @@ pub fn app() -> ExitCode {
             }
         }
         Commands::Clean { filter, force } => {
-            trace!("Clean tasks");
+            log::trace!("Clean tasks");
             // Use the FilterOptions struct instead of individual parameters
-            debug!("Force clean without confirmation: {force}");
+            log::debug!("Force clean without confirmation: {force}");
 
             // Use TaskManager to clean tasks
             if task_manager
@@ -176,8 +175,8 @@ pub fn app() -> ExitCode {
             }
         }
         Commands::Sync { prefer } => {
-            trace!("Sync with remote repository");
-            debug!("Conflict resolution preference: {prefer}");
+            log::trace!("Sync with remote repository");
+            log::debug!("Conflict resolution preference: {prefer}");
 
             // Use TaskManager to sync with remote repository
             if task_manager
@@ -192,8 +191,8 @@ pub fn app() -> ExitCode {
             }
         }
         Commands::Clone { url } => {
-            trace!("Clone remote repository");
-            debug!("Repository URL: {url}");
+            log::trace!("Clone remote repository");
+            log::debug!("Repository URL: {url}");
 
             // Use TaskManager to clone a remote repository
             if task_manager

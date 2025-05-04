@@ -1,11 +1,10 @@
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
-use log::debug;
 use uuid::Uuid;
 
 use super::{
-    active_task,
+    active_task::{self, ActiveTask},
     filter::{DateRange, FilterOptions},
     model::{Priority, Task, TaskStatus},
     storage,
@@ -14,7 +13,6 @@ use crate::{
     config::{GitConfig, PathConfig},
     display::Display,
     git::{MergeStrategy, repo::GitRepo},
-    task::active_task::ActiveTask,
 };
 
 /// Task Manager
@@ -151,7 +149,7 @@ impl TaskManager {
 
         // Check if the task is already done
         if task.status == TaskStatus::Done {
-            return Err(anyhow!("Task is already completed"));
+            anyhow::bail!("Task is already completed");
         }
 
         // Check if this is the active task
@@ -191,9 +189,9 @@ impl TaskManager {
         // If this was the active task, clear the active task record
         if is_active_task {
             active_task::clear_active_task(&self.path_config.active_task_file())?;
-            debug!("Completed active task: {task_id} and cleared active task file");
+            log::debug!("Completed active task: {task_id} and cleared active task file");
         } else {
-            debug!("Completed task: {task_id}");
+            log::debug!("Completed task: {task_id}");
         }
 
         Ok(())
@@ -205,11 +203,11 @@ impl TaskManager {
         if let Some(active) = active_task::load_active_task(&self.path_config.active_task_file())? {
             let active_task_obj =
                 storage::load_task(&self.path_config.task_dir(), &active.task_id)?;
-            return Err(anyhow!(
+            anyhow::bail!(
                 "There's already an active task: {} - {}. Stop it first.",
                 active.task_id,
                 active_task_obj.description
-            ));
+            )
         }
 
         // Load task
@@ -217,10 +215,10 @@ impl TaskManager {
 
         // Check if task is already completed or aborted
         if task.status == TaskStatus::Done {
-            return Err(anyhow!("Cannot start a completed task"));
+            anyhow::bail!("Cannot start a completed task")
         }
         if task.status == TaskStatus::Aborted {
-            return Err(anyhow!("Cannot start an aborted task"));
+            anyhow::bail!("Cannot start an aborted task")
         }
 
         // Get current time
@@ -230,7 +228,7 @@ impl TaskManager {
         let active = ActiveTask::new(task.id.clone(), now);
         active_task::save_active_task(&self.path_config.active_task_file(), &active)?;
 
-        debug!("Started task: {} and saved to active task file", task.id);
+        log::debug!("Started task: {} and saved to active task file", task.id);
         Ok(task.id)
     }
 
@@ -241,7 +239,7 @@ impl TaskManager {
             active_task::load_active_task(&self.path_config.active_task_file())?
         else {
             // No active task found
-            bail!("No active task found. Task might not be in progress.")
+            anyhow::bail!("No active task found. Task might not be in progress.")
         };
 
         // Load the task
@@ -268,7 +266,7 @@ impl TaskManager {
         // Clear the active task record
         active_task::clear_active_task(&self.path_config.active_task_file())?;
 
-        debug!(
+        log::debug!(
             "Stopped task: {} and cleared active task file",
             &active_task_info.task_id
         );
@@ -284,7 +282,7 @@ impl TaskManager {
                 let Some(active_task) =
                     active_task::load_active_task(&self.path_config.active_task_file())?
                 else {
-                    bail!("No active task found");
+                    anyhow::bail!("No active task found");
                 };
                 active_task.task_id
             }
@@ -293,10 +291,10 @@ impl TaskManager {
 
         // Check if the task is already done or aborted
         if task.status == TaskStatus::Done {
-            bail!("Cannot abort a completed task");
+            anyhow::bail!("Cannot abort a completed task");
         }
         if task.status == TaskStatus::Aborted {
-            bail!("Task is already aborted");
+            anyhow::bail!("Task is already aborted");
         }
 
         // Check if this is the active task
@@ -331,9 +329,9 @@ impl TaskManager {
         // If this was the active task, clear the active task record
         if is_active_task {
             active_task::clear_active_task(&self.path_config.active_task_file())?;
-            debug!("Aborted active task: {task_id} and cleared active task file");
+            log::debug!("Aborted active task: {task_id} and cleared active task file");
         } else {
-            debug!("Aborted task: {task_id}");
+            log::debug!("Aborted task: {task_id}");
         }
 
         Ok(task_id)

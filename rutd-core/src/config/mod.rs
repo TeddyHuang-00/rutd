@@ -9,11 +9,9 @@ use figment::{
     providers::{Env, Format, Serialized, Toml},
 };
 pub use git::GitConfig;
-use log::info;
 pub use logging::LogConfig;
 pub use path::PathConfig;
 use serde::{Deserialize, Serialize};
-use shellexpand::tilde;
 pub use task::TaskConfig;
 
 /// Main configuration structure that holds all configuration options
@@ -49,7 +47,7 @@ impl Config {
 
         Ok(Figment::new()
             .merge(Serialized::defaults(Config::default()))
-            .merge(Toml::file(tilde(&config_file).as_ref()).nested())
+            .merge(Toml::file(shellexpand::tilde(&config_file).as_ref()).nested())
             .merge(Env::prefixed(&env_var_prefix).map(|key| {
                 // Convert environment variable keys to a format that matches the config
                 // structure For example, "RUTD_PATH__ROOT_DIR" becomes
@@ -58,7 +56,7 @@ impl Config {
                     .as_str()
                     // Use double underscore to separate nested keys
                     .replace("__", ".");
-                info!("Loading environment variable: {key}");
+                log::info!("Loading environment variable: {key}");
                 key.into()
             }))
             .extract()?)
