@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
+use clap_complete::ArgValueCompleter;
 use rutd_core::{
+    complete,
     git::MergeStrategy,
     task::{FilterOptions, Priority},
 };
@@ -31,14 +33,19 @@ pub enum Commands {
         #[arg(value_enum, short, long, default_value_t = Priority::Normal)]
         priority: Priority,
 
-        // TODO: Add completion candidate based on configuration and present scopes
         /// Task scope (project name)
-        #[arg(short, long)]
+        #[arg(
+            short, long,
+            add = ArgValueCompleter::new(complete::complete_scope)
+        )]
         scope: Option<String>,
 
-        // TODO: Add completion candidate based on configuration and present task types
         /// Task type (e.g., feat, fix, other, etc.)
-        #[arg(short, long)]
+        #[arg(
+            short, long,
+            value_name = "type",
+            add = ArgValueCompleter::new(complete::complete_type)
+        )]
         task_type: Option<String>,
     },
     /// List tasks
@@ -61,6 +68,7 @@ pub enum Commands {
     #[command(visible_aliases = ["d", "f"])]
     Done {
         /// Task ID
+        #[arg(add = ArgValueCompleter::new(complete::complete_id))]
         id: String,
     },
     /// Edit task description
@@ -70,6 +78,7 @@ pub enum Commands {
     #[command(visible_aliases = ["e"])]
     Edit {
         /// Task ID
+        #[arg(add = ArgValueCompleter::new(complete::complete_id))]
         id: String,
     },
     /// Start working on a task
@@ -79,6 +88,7 @@ pub enum Commands {
     #[command(visible_aliases = ["s"])]
     Start {
         /// Task ID
+        #[arg(add = ArgValueCompleter::new(complete::complete_id))]
         id: String,
     },
     /// Stop working on active task
@@ -92,6 +102,7 @@ pub enum Commands {
     #[command(visible_aliases = ["x", "c"])]
     Abort {
         /// Task ID, if not specified, abort the active task
+        #[arg(add = ArgValueCompleter::new(complete::complete_id))]
         id: Option<String>,
     },
     /// Clean tasks
@@ -122,6 +133,7 @@ pub enum Commands {
     #[command(visible_aliases = ["pull"])]
     Clone {
         /// Remote repository URL to clone
+        #[arg(value_hint = clap::ValueHint::Url)]
         url: String,
     },
 }
