@@ -1,0 +1,108 @@
+# Based on typst's release action:
+# https://github.com/typst/typst/blob/main/.github/workflows/release.yml
+
+name: Release Binaries
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-release:
+    name: release ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-24.04
+            feature: vendored
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+            feature: vendored
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            feature: default
+          - target: x86_64-apple-darwin
+            os: macos-13
+            feature: default
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Cross-Compilation Tools
+        if: contains(matrix.target, 'linux-musl')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools pkg-config libssl-dev
+          # echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.target }}
+
+      - name: Run Build
+        run: cargo build --verbose --release --target ${{ matrix.target }} -F ${{ matrix.feature }}
+
+      - name: Setup python for checksums
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Create artifact directory
+        shell: bash
+        run: |
+          directory=rutd-${{ matrix.target }}
+          mkdir $directory
+          cp README.md LICENSE $directory
+          cp target/${{ matrix.target }}/release/rutd-* $directory
+          tar cJf $directory.tar.xz $directory
+          python3 -c "import hashlib; open('$directory.tar.xz.sha256', 'w').write(hashlib.file_digest(open('$directory.tar.xz', 'rb'), 'sha256').hexdigest())"
+
+      - name: Upload Release
+        uses: ncipollo/release-action@v1.16.0
+        with:
+          artifacts: "rutd-${{ matrix.target }}.*"
+          allowUpdates: true
+          omitNameDuringUpdate: true
+          omitBodyDuringUpdate: true
+
+  update-changelog:
+    name: Update Changelog
+    runs-on: ubuntu-latest
+    needs: build-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Determine if is pre-release
+        id: is-prerelease
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          # Remove the 'v' prefix if present
+          VERSION=${TAG_NAME#v}
+          # Check if version has pre-release suffix (contains '-')
+          if [[ "$VERSION" == *"-"* ]]; then
+            echo "Pre-release version detected: $VERSION"
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "Stable version detected: $VERSION"
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update CHANGELOG
+        id: changelog
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          tag: ${{ github.ref.tag_name }}
+          writeToFile: false
+
+      - name: Update Release
+        uses: ncipollo/release-action@v1.16.0
+        with:
+          allowUpdates: true
+          body: ${{ steps.changelog.outputs.changes }}
+          prerelease: ${{ steps.is-prerelease.outputs.prerelease == 'true' }}
