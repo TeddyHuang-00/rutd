@@ -9,7 +9,7 @@ license.workspace = true
 readme.workspace = true
 
 [dependencies]
-rutd-core = { path = "../rutd-core", version = "0.4.0" }
+rutd-core = { path = "../rutd-core", version = "0.4.1-rc.1" }
 anyhow.workspace = true
 chrono.workspace = true
 clap.workspace = true
