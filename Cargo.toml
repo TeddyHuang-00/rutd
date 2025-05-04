@@ -15,8 +15,6 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-clap.workspace = true
-clap_complete.workspace = true
 rutd-cli = { path = "rutd-cli", version = "0.4.0" }
 # rutd-tui = { path = "rutd-tui", version = "0.2.1-rc.3" }
 
