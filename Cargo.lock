@@ -1044,6 +1044,7 @@ name = "rutd-cli"
 version = "0.3.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "clap",
  "clap_complete",
  "colored 3.0.0",
@@ -1053,6 +1054,8 @@ dependencies = [
  "log",
  "rutd-core",
  "simple_logger",
+ "tempfile",
+ "toml",
 ]
 
 [[package]]
@@ -1061,8 +1064,6 @@ version = "0.3.0"
 dependencies = [
  "anyhow",
  "chrono",
- "clap",
- "clap_complete",
  "figment",
  "fuzzy-matcher",
  "git2",

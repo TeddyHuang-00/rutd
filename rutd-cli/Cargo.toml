@@ -9,8 +9,9 @@ license.workspace = true
 readme.workspace = true
 
 [dependencies]
-rutd-core = { path = "../rutd-core", features = ["cli"], version = "0.3.0" }
+rutd-core = { path = "../rutd-core", version = "0.3.0" }
 anyhow.workspace = true
+chrono.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
 colored.workspace = true
@@ -19,6 +20,8 @@ dialoguer.workspace = true
 fuzzy-matcher.workspace = true
 log.workspace = true
 simple_logger.workspace = true
+tempfile.workspace = true
+toml.workspace = true
 
 [features]
 default = []

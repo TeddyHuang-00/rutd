@@ -1,29 +1,21 @@
 use std::fmt;
 
 use chrono::Local;
-#[cfg(feature = "cli")]
-use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 // FIXME: Visible aliases for value enum is not yet supported in clap, see
 // https://github.com/clap-rs/clap/pull/5480
 /// Task Priority
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "cli", derive(ValueEnum))]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Priority {
     /// Most urgent (alias: u, 0)
-    #[cfg_attr(feature = "cli", value(aliases = ["u", "0"]))]
     Urgent,
     /// High priority (alias: h, 1)
-    #[cfg_attr(feature = "cli", value(aliases = ["h", "1"]))]
     High,
     /// Normal priority (alias: n, 2)
-    #[cfg_attr(feature = "cli", value(aliases = ["n", "2"]))]
     #[default]
     Normal,
     /// Low priority (alias: l, 3)
-    #[cfg_attr(feature = "cli", value(aliases = ["l", "3"]))]
     Low,
 }
 
@@ -41,19 +33,14 @@ impl fmt::Display for Priority {
 // FIXME: Visible aliases for value enum is not yet supported in clap, see
 // https://github.com/clap-rs/clap/pull/5480
 /// Task Status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "cli", derive(ValueEnum))]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum TaskStatus {
     /// Pending (alias: t, p, pending)
-    #[cfg_attr(feature = "cli", value(aliases = ["t", "p", "pending"]))]
     #[default]
     Todo,
     /// Finished (alias: d, f, finished)
-    #[cfg_attr(feature = "cli", value(aliases = ["d", "f", "finished"]))]
     Done,
     /// Cancelled (alias: a, x, c, cancelled)
-    #[cfg_attr(feature = "cli", value(aliases = ["a", "x", "c", "cancelled"]))]
     Aborted,
 }
 

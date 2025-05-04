@@ -1,10 +1,7 @@
 use clap::{Parser, Subcommand};
 use clap_complete::ArgValueCompleter;
-use rutd_core::{
-    complete,
-    git::MergeStrategy,
-    task::{FilterOptions, Priority},
-};
+
+use super::{FilterOptions, MergeStrategy, Priority, complete};
 
 /// RuTD - A Rust based To-Do list manager for your rushing to-dos
 #[derive(Parser, Debug)]

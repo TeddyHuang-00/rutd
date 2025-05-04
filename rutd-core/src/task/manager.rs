@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use super::{
     active_task::{self, ActiveTask},
-    filter::{DateRange, FilterOptions},
+    filter::{DateRange, Filter},
     model::{Priority, Task, TaskStatus},
     storage,
 };
@@ -34,7 +34,7 @@ impl TaskManager {
     }
 
     /// Check if a task matches the filter conditions
-    fn matches_filters(task: &Task, filter_options: &FilterOptions) -> bool {
+    fn matches_filters(task: &Task, filter_options: &Filter) -> bool {
         // Check basic filters
         if let Some(p) = &filter_options.priority {
             if task.priority != *p {
@@ -128,13 +128,18 @@ impl TaskManager {
             scope,
             task_type,
         );
-        storage::save_task(&self.path_config.task_dir(), &task, "create", "Create task")?;
+        storage::save_task(
+            &self.path_config.task_dir_path(),
+            &task,
+            "create",
+            "Create task",
+        )?;
         Ok(id)
     }
 
     /// List tasks with filtering support
-    pub fn list_tasks(&self, filter_options: &FilterOptions) -> Result<Vec<Task>> {
-        let tasks = storage::load_all_tasks(&self.path_config.task_dir())?;
+    pub fn list_tasks(&self, filter_options: &Filter) -> Result<Vec<Task>> {
+        let tasks = storage::load_all_tasks(&self.path_config.task_dir_path())?;
         let filtered_tasks = tasks
             .into_iter()
             .filter(|task| Self::matches_filters(task, filter_options))
@@ -145,7 +150,7 @@ impl TaskManager {
 
     /// Mark a task as completed
     pub fn mark_task_done(&self, task_id: &str) -> Result<()> {
-        let mut task = storage::load_task(&self.path_config.task_dir(), task_id)?;
+        let mut task = storage::load_task(&self.path_config.task_dir_path(), task_id)?;
 
         // Check if the task is already done
         if task.status == TaskStatus::Done {
@@ -154,7 +159,7 @@ impl TaskManager {
 
         // Check if this is the active task
         let is_active_task =
-            match active_task::load_active_task(&self.path_config.active_task_file())? {
+            match active_task::load_active_task(&self.path_config.active_task_file_path())? {
                 Some(active) => {
                     if active.task_id == task_id {
                         // Calculate time spent using the active task record
@@ -185,7 +190,7 @@ impl TaskManager {
 
         // Save the updated task
         storage::save_task(
-            &self.path_config.task_dir(),
+            &self.path_config.task_dir_path(),
             &task,
             "finish",
             "Mark task as done",
@@ -193,7 +198,7 @@ impl TaskManager {
 
         // If this was the active task, clear the active task record
         if is_active_task {
-            active_task::clear_active_task(&self.path_config.active_task_file())?;
+            active_task::clear_active_task(&self.path_config.active_task_file_path())?;
             log::debug!("Completed active task: {task_id} and cleared active task file");
         } else {
             log::debug!("Completed task: {task_id}");
@@ -205,9 +210,11 @@ impl TaskManager {
     /// Start working on a task
     pub fn start_task(&self, task_id: &str) -> Result<String> {
         // Check if there is already an active task
-        if let Some(active) = active_task::load_active_task(&self.path_config.active_task_file())? {
+        if let Some(active) =
+            active_task::load_active_task(&self.path_config.active_task_file_path())?
+        {
             let active_task_obj =
-                storage::load_task(&self.path_config.task_dir(), &active.task_id)?;
+                storage::load_task(&self.path_config.task_dir_path(), &active.task_id)?;
             anyhow::bail!(
                 "There's already an active task: {} - {}. Stop it first.",
                 active.task_id,
@@ -216,7 +223,7 @@ impl TaskManager {
         }
 
         // Load task
-        let task = storage::load_task(&self.path_config.task_dir(), task_id)?;
+        let task = storage::load_task(&self.path_config.task_dir_path(), task_id)?;
 
         // Check if task is already completed or aborted
         if task.status == TaskStatus::Done {
@@ -231,7 +238,7 @@ impl TaskManager {
 
         // Create and save active task record
         let active = ActiveTask::new(task.id.clone(), now);
-        active_task::save_active_task(&self.path_config.active_task_file(), &active)?;
+        active_task::save_active_task(&self.path_config.active_task_file_path(), &active)?;
 
         log::debug!("Started task: {} and saved to active task file", task.id);
         Ok(task.id)
@@ -241,14 +248,15 @@ impl TaskManager {
     pub fn stop_task(&self) -> Result<String> {
         // Check if there's an active task
         let Some(active_task_info) =
-            active_task::load_active_task(&self.path_config.active_task_file())?
+            active_task::load_active_task(&self.path_config.active_task_file_path())?
         else {
             // No active task found
             anyhow::bail!("No active task found. Task might not be in progress.")
         };
 
         // Load the task
-        let mut task = storage::load_task(&self.path_config.task_dir(), &active_task_info.task_id)?;
+        let mut task =
+            storage::load_task(&self.path_config.task_dir_path(), &active_task_info.task_id)?;
 
         // Calculate time spent using the active task record
         let started_time = DateTime::parse_from_rfc3339(&active_task_info.started_at)
@@ -267,14 +275,14 @@ impl TaskManager {
 
         // Save the updated task
         storage::save_task(
-            &self.path_config.task_dir(),
+            &self.path_config.task_dir_path(),
             &task,
             "update",
             "Update time spent on task",
         )?;
 
         // Clear the active task record
-        active_task::clear_active_task(&self.path_config.active_task_file())?;
+        active_task::clear_active_task(&self.path_config.active_task_file_path())?;
 
         log::debug!(
             "Stopped task: {} and cleared active task file",
@@ -290,14 +298,14 @@ impl TaskManager {
             None => {
                 // Load the active task if no ID is provided
                 let Some(active_task) =
-                    active_task::load_active_task(&self.path_config.active_task_file())?
+                    active_task::load_active_task(&self.path_config.active_task_file_path())?
                 else {
                     anyhow::bail!("No active task found");
                 };
                 active_task.task_id
             }
         };
-        let mut task = storage::load_task(&self.path_config.task_dir(), &task_id)?;
+        let mut task = storage::load_task(&self.path_config.task_dir_path(), &task_id)?;
 
         // Check if the task is already done or aborted
         if task.status == TaskStatus::Done {
@@ -309,7 +317,7 @@ impl TaskManager {
 
         // Check if this is the active task
         let is_active_task =
-            match active_task::load_active_task(&self.path_config.active_task_file())? {
+            match active_task::load_active_task(&self.path_config.active_task_file_path())? {
                 Some(active) if active.task_id == task_id => {
                     // Calculate time spent using the active task record
                     let started_time = DateTime::parse_from_rfc3339(&active.started_at)
@@ -334,11 +342,16 @@ impl TaskManager {
         task.completed_at = Some(Local::now().to_rfc3339());
 
         // Save the updated task
-        storage::save_task(&self.path_config.task_dir(), &task, "cancel", "Cancel task")?;
+        storage::save_task(
+            &self.path_config.task_dir_path(),
+            &task,
+            "cancel",
+            "Cancel task",
+        )?;
 
         // If this was the active task, clear the active task record
         if is_active_task {
-            active_task::clear_active_task(&self.path_config.active_task_file())?;
+            active_task::clear_active_task(&self.path_config.active_task_file_path())?;
             log::debug!("Aborted active task: {task_id} and cleared active task file");
         } else {
             log::debug!("Aborted task: {task_id}");
@@ -354,7 +367,7 @@ impl TaskManager {
         display_manager: &D,
     ) -> Result<String> {
         // Load the task
-        let mut task = storage::load_task(&self.path_config.task_dir(), task_id)?;
+        let mut task = storage::load_task(&self.path_config.task_dir_path(), task_id)?;
 
         // Edit the task description through display
         let Some(new_description) = display_manager.edit(&task.description)? else {
@@ -369,7 +382,7 @@ impl TaskManager {
             task.description = new_description;
             task.updated_at = Some(Local::now().to_rfc3339());
             storage::save_task(
-                &self.path_config.task_dir(),
+                &self.path_config.task_dir_path(),
                 &task,
                 "update",
                 "Update task description",
@@ -382,7 +395,7 @@ impl TaskManager {
     /// Clean tasks based on filters
     pub fn clean_tasks<D: Display>(
         &self,
-        filter_options: &FilterOptions,
+        filter_options: &Filter,
         force: bool,
         display_manager: &D,
     ) -> Result<usize> {
@@ -401,7 +414,7 @@ impl TaskManager {
 
         // Batch delete tasks
         storage::delete_task(
-            &self.path_config.task_dir(),
+            &self.path_config.task_dir_path(),
             &tasks
                 .iter()
                 .map(|task| task.id.as_str())
@@ -413,13 +426,13 @@ impl TaskManager {
 
     /// Clone a remote repository
     pub fn clone_repo(&self, url: &str) -> Result<()> {
-        GitRepo::clone(self.path_config.task_dir(), url, &self.git_config)?;
+        GitRepo::clone(self.path_config.task_dir_path(), url, &self.git_config)?;
         Ok(())
     }
 
     /// Sync with remote repository
     pub fn sync(&self, prefer: MergeStrategy) -> Result<()> {
-        let git_repo = GitRepo::init(self.path_config.task_dir())?;
+        let git_repo = GitRepo::init(self.path_config.task_dir_path())?;
         git_repo.sync(prefer, &self.git_config)?;
         Ok(())
     }
@@ -437,7 +450,7 @@ mod tests {
     use crate::{
         config::{GitConfig, PathConfig},
         display::Display,
-        task::{FilterOptions, TaskStatus},
+        task::{Filter, TaskStatus},
     };
 
     // Mock display implementation for testing
@@ -476,8 +489,10 @@ mod tests {
         let temp_dir = tempdir().unwrap();
 
         // Create a custom path config that uses the temp directory
-        let mut path_config = PathConfig::default();
-        path_config.set_root_dir(temp_dir.path());
+        let path_config = PathConfig {
+            root_dir: temp_dir.path().to_path_buf(),
+            ..Default::default()
+        };
 
         let git_config = GitConfig::default();
 
@@ -502,7 +517,7 @@ mod tests {
         // but we'll check that the function runs without panicking
         if let Ok(task_id) = result {
             // If successful, verify the task was created
-            let task_dir = task_manager.path_config.task_dir();
+            let task_dir = task_manager.path_config.task_dir_path();
             let task_file = task_dir.join(format!("{task_id}.toml"));
             assert!(task_file.exists());
         }
@@ -513,7 +528,7 @@ mod tests {
         let (task_manager, _temp_dir) = create_test_task_manager();
 
         // Add a few test tasks directly (bypassing git operations)
-        let task_dir = task_manager.path_config.task_dir();
+        let task_dir = task_manager.path_config.task_dir_path();
 
         // Create task directory
         fs::create_dir_all(&task_dir).unwrap();
@@ -538,7 +553,7 @@ mod tests {
         }
 
         // List tasks with no filters
-        let filter = FilterOptions::default();
+        let filter = Filter::default();
         let result = task_manager.list_tasks(&filter);
 
         assert!(result.is_ok());
@@ -546,7 +561,7 @@ mod tests {
 
         // List tasks with priority filter
         // None of our tasks have this priority
-        let filter = FilterOptions {
+        let filter = Filter {
             priority: Some(Priority::High),
             ..Default::default()
         };
@@ -561,7 +576,7 @@ mod tests {
         let (task_manager, _temp_dir) = create_test_task_manager();
 
         // Create a test task
-        let task_dir = task_manager.path_config.task_dir();
+        let task_dir = task_manager.path_config.task_dir_path();
         fs::create_dir_all(&task_dir).unwrap();
 
         let task_id = "test-complete";
@@ -601,7 +616,7 @@ mod tests {
         let (task_manager, _temp_dir) = create_test_task_manager();
 
         // Create a test task
-        let task_dir = task_manager.path_config.task_dir();
+        let task_dir = task_manager.path_config.task_dir_path();
         fs::create_dir_all(&task_dir).unwrap();
 
         let task_id = "test-start-stop";
@@ -626,7 +641,7 @@ mod tests {
 
         // Check that the active task file was created
         if result.is_ok() {
-            let active_task_file = task_manager.path_config.active_task_file();
+            let active_task_file = task_manager.path_config.active_task_file_path();
             assert!(active_task_file.exists());
 
             // Stop the task
@@ -650,7 +665,7 @@ mod tests {
         let (task_manager, _temp_dir) = create_test_task_manager();
 
         // Create a test task
-        let task_dir = task_manager.path_config.task_dir();
+        let task_dir = task_manager.path_config.task_dir_path();
         fs::create_dir_all(&task_dir).unwrap();
 
         let task_id = "test-abort";
@@ -687,7 +702,7 @@ mod tests {
         let (task_manager, _temp_dir) = create_test_task_manager();
 
         // Create a test task
-        let task_dir = task_manager.path_config.task_dir();
+        let task_dir = task_manager.path_config.task_dir_path();
         fs::create_dir_all(&task_dir).unwrap();
 
         let task_id = "test-edit";
@@ -729,7 +744,7 @@ mod tests {
         let (task_manager, _temp_dir) = create_test_task_manager();
 
         // Create some test tasks
-        let task_dir = task_manager.path_config.task_dir();
+        let task_dir = task_manager.path_config.task_dir_path();
         fs::create_dir_all(&task_dir).unwrap();
 
         // Create done and todo tasks
@@ -772,7 +787,7 @@ mod tests {
         .unwrap();
 
         // Create a filter to only clean Done tasks
-        let filter = FilterOptions {
+        let filter = Filter {
             status: Some(TaskStatus::Done),
             ..Default::default()
         };
@@ -796,7 +811,7 @@ mod tests {
         let (task_manager, _temp_dir) = create_test_task_manager();
 
         // Create test tasks with different statuses
-        let task_dir = task_manager.path_config.task_dir();
+        let task_dir = task_manager.path_config.task_dir_path();
         fs::create_dir_all(&task_dir).unwrap();
 
         // Create tasks with different statuses
@@ -908,81 +923,81 @@ mod tests {
         };
 
         // Test 1: Empty filter should match
-        let filter = FilterOptions::default();
+        let filter = Filter::default();
         assert!(TaskManager::matches_filters(&task, &filter));
 
         // Test 2: Matching priority filter
-        let filter = FilterOptions {
+        let filter = Filter {
             priority: Some(Priority::High),
             ..Default::default()
         };
         assert!(TaskManager::matches_filters(&task, &filter));
 
         // Test 3: Non-matching priority filter
-        let filter = FilterOptions {
+        let filter = Filter {
             priority: Some(Priority::Low),
             ..Default::default()
         };
         assert!(!TaskManager::matches_filters(&task, &filter));
 
         // Test 4: Matching scope filter
-        let filter = FilterOptions {
+        let filter = Filter {
             task_scope: Some("test-scope".to_string()),
             ..Default::default()
         };
         assert!(TaskManager::matches_filters(&task, &filter));
 
         // Test 5: Non-matching scope filter
-        let filter = FilterOptions {
+        let filter = Filter {
             task_scope: Some("wrong-scope".to_string()),
             ..Default::default()
         };
         assert!(!TaskManager::matches_filters(&task, &filter));
 
         // Test 6: Matching type filter
-        let filter = FilterOptions {
+        let filter = Filter {
             task_type: Some("feature".to_string()),
             ..Default::default()
         };
         assert!(TaskManager::matches_filters(&task, &filter));
 
         // Test 7: Non-matching type filter
-        let filter = FilterOptions {
+        let filter = Filter {
             task_type: Some("bug".to_string()),
             ..Default::default()
         };
         assert!(!TaskManager::matches_filters(&task, &filter));
 
         // Test 8: Matching status filter
-        let filter = FilterOptions {
+        let filter = Filter {
             status: Some(TaskStatus::Todo),
             ..Default::default()
         };
         assert!(TaskManager::matches_filters(&task, &filter));
 
         // Test 9: Non-matching status filter
-        let filter = FilterOptions {
+        let filter = Filter {
             status: Some(TaskStatus::Done),
             ..Default::default()
         };
         assert!(!TaskManager::matches_filters(&task, &filter));
 
         // Test 10: Matching fuzzy filter
-        let filter = FilterOptions {
+        let filter = Filter {
             fuzzy: Some("filtering".to_string()),
             ..Default::default()
         };
         assert!(TaskManager::matches_filters(&task, &filter));
 
         // Test 11: Non-matching fuzzy filter
-        let filter = FilterOptions {
+        let filter = Filter {
             fuzzy: Some("nonexistent".to_string()),
             ..Default::default()
         };
         assert!(!TaskManager::matches_filters(&task, &filter));
 
         // Test 12: Multiple matching filters
-        let filter = FilterOptions {
+        let filter = Filter {
             priority: Some(Priority::High),
             task_scope: Some("test-scope".to_string()),
             status: Some(TaskStatus::Todo),
@@ -991,7 +1006,7 @@ mod tests {
         assert!(TaskManager::matches_filters(&task, &filter));
 
         // Test 13: Mixed matching and non-matching filters
-        let filter = FilterOptions {
+        let filter = Filter {
             priority: Some(Priority::High),
             task_scope: Some("wrong-scope".to_string()),
             ..Default::default()
@@ -1004,7 +1019,7 @@ mod tests {
         let (task_manager, _temp_dir) = create_test_task_manager();
 
         // Create a test task
-        let task_dir = task_manager.path_config.task_dir();
+        let task_dir = task_manager.path_config.task_dir_path();
         fs::create_dir_all(&task_dir).unwrap();
 
         let task_id = "active-task-test";
@@ -1060,7 +1075,7 @@ mod tests {
         assert!(complete_result.is_ok());
 
         // The active task file should no longer exist
-        let active_task_file = task_manager.path_config.active_task_file();
+        let active_task_file = task_manager.path_config.active_task_file_path();
         assert!(!active_task_file.exists());
 
         // We should now be able to start a different task

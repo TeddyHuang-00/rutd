@@ -81,7 +81,7 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs};
+    use std::{env, fs, path::PathBuf};
 
     use tempfile::tempdir;
 
@@ -201,13 +201,18 @@ mod tests {
 
         println!("{config:?}");
 
-        let mut path = PathConfig::default();
-        path.set_root_dir("/test/custom/root");
-        path.set_tasks_dir("test-tasks");
+        let path = PathConfig {
+            root_dir: PathBuf::from("/test/custom/root"),
+            tasks_dir: PathBuf::from("test-tasks"),
+            ..Default::default()
+        };
 
         // Check that values from the config file are loaded
-        assert_eq!(config.path.task_dir(), path.task_dir());
-        assert_eq!(config.path.active_task_file(), path.active_task_file());
+        assert_eq!(config.path.task_dir_path(), path.task_dir_path());
+        assert_eq!(
+            config.path.active_task_file_path(),
+            path.active_task_file_path()
+        );
         assert_eq!(config.git.username, "test-user");
         assert_eq!(config.git.password, "test-password");
         assert!(!config.log.console);
@@ -252,7 +257,7 @@ mod tests {
 
             // Check that values from environment variables are loaded
             assert_eq!(
-                config.path.task_dir().to_str().unwrap(),
+                config.path.task_dir_path().to_str().unwrap(),
                 "/env/test/root/env-test-tasks"
             );
             assert_eq!(config.git.username, "env-test-user");

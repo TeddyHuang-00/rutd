@@ -1,11 +1,7 @@
 use std::{collections::HashSet, ffi::OsStr, path::Path};
 
 use clap_complete::CompletionCandidate;
-
-use crate::{
-    Config,
-    task::{Task, storage},
-};
+use rutd_core::{Config, Task, task::storage};
 
 /// Get all tasks from the task directory with error handling
 fn get_tasks(task_dir: &Path) -> Vec<Task> {
@@ -23,7 +19,7 @@ pub fn complete_id(current: &OsStr) -> Vec<CompletionCandidate> {
     };
 
     let Config { path, .. } = Config::new().unwrap();
-    let tasks = get_tasks(&path.task_dir());
+    let tasks = get_tasks(&path.task_dir_path());
     tasks
         .into_iter()
         // Get the task IDs
@@ -45,7 +41,7 @@ pub fn complete_scope(current: &OsStr) -> Vec<CompletionCandidate> {
     };
 
     let Config { path, task, .. } = Config::new().unwrap();
-    let tasks = get_tasks(&path.task_dir());
+    let tasks = get_tasks(&path.task_dir_path());
     // Get the scopes from the task configuration
     task.scopes
         .into_iter()
@@ -68,7 +64,7 @@ pub fn complete_type(current: &OsStr) -> Vec<CompletionCandidate> {
     };
 
     let Config { path, task, .. } = Config::new().unwrap();
-    let tasks = get_tasks(&path.task_dir());
+    let tasks = get_tasks(&path.task_dir_path());
     // Get the task types from the task configuration
     task.types
         .into_iter()
@@ -88,13 +84,14 @@ pub fn complete_type(current: &OsStr) -> Vec<CompletionCandidate> {
 mod tests {
     use std::{fs::File, io::Write};
 
-    use tempfile::tempdir;
-
-    use super::*;
-    use crate::{
+    use rutd_core::{
         config::{PathConfig, TaskConfig},
         task::{Priority, TaskStatus},
     };
+    use tempfile::tempdir;
+    use toml;
+
+    use super::*;
 
     // Mock Config to avoid dependency on env variables and file system
     struct MockConfig {
@@ -104,8 +101,10 @@ mod tests {
 
     impl MockConfig {
         fn new(task_dir: &Path) -> Self {
-            let mut path_config = PathConfig::default();
-            path_config.set_root_dir(task_dir);
+            let path_config = PathConfig {
+                root_dir: task_dir.to_path_buf(),
+                ..Default::default()
+            };
 
             let task_config = TaskConfig {
                 scopes: vec!["project".to_string(), "feature".to_string()],
@@ -204,7 +203,7 @@ mod tests {
 
     // Refactored version of complete_id for testability (not used in production)
     fn complete_id_testable(current: &str, path_config: &PathConfig) -> Vec<String> {
-        let tasks = get_tasks(&path_config.task_dir());
+        let tasks = get_tasks(&path_config.task_dir_path());
         tasks
             .into_iter()
             .map(|task| task.id)
@@ -221,7 +220,7 @@ mod tests {
         // Create a mock config
         let mock_config = MockConfig::new(temp_dir.path());
 
-        create_test_tasks(&mock_config.path_config.task_dir());
+        create_test_tasks(&mock_config.path_config.task_dir_path());
 
         // Test empty prefix should return all task IDs
         let completions = complete_id_testable("", &mock_config.path_config);
@@ -250,7 +249,7 @@ mod tests {
         path_config: &PathConfig,
         task_config: &TaskConfig,
     ) -> Vec<String> {
-        let tasks = get_tasks(&path_config.task_dir());
+        let tasks = get_tasks(&path_config.task_dir_path());
         task_config
             .scopes
             .clone()
@@ -269,7 +268,7 @@ mod tests {
         // Create a mock config
         let mock_config = MockConfig::new(temp_dir.path());
 
-        create_test_tasks(&mock_config.path_config.task_dir());
+        create_test_tasks(&mock_config.path_config.task_dir_path());
 
         // Test empty prefix should return all scopes (from tasks and config)
         let completions =
@@ -302,7 +301,7 @@ mod tests {
         path_config: &PathConfig,
         task_config: &TaskConfig,
     ) -> Vec<String> {
-        let tasks = get_tasks(&path_config.task_dir());
+        let tasks = get_tasks(&path_config.task_dir_path());
         task_config
             .types
             .clone()

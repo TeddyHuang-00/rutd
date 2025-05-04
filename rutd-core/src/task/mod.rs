@@ -4,6 +4,6 @@ pub mod manager;
 pub mod model;
 pub mod storage;
 
-pub use filter::{DateRange, FilterOptions};
+pub use filter::{DateRange, Filter};
 pub use manager::TaskManager;
 pub use model::{Priority, Task, TaskStatus};
