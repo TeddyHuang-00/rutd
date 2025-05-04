@@ -27,4 +27,3 @@ fuzzy-matcher.workspace = true
 default = []
 cli = ["dep:clap", "dep:clap_complete"]
 vendored = ["git2/vendored-openssl", "git2/vendored-libgit2"]
-zlib = ["git2/zlib-ng-compat"]
