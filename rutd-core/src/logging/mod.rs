@@ -53,7 +53,7 @@ impl FileLogger {
             }
         });
 
-        let mut logger = Self {
+        let logger = Self {
             level,
             module_level,
             file,
@@ -69,7 +69,7 @@ impl FileLogger {
     }
 
     /// Trim the log file to keep only the maximum number of lines
-    fn trim_log_file(&mut self) -> io::Result<()> {
+    fn trim_log_file(&self) -> io::Result<()> {
         // If max_history is not set or file is not available, do nothing
         let (Some(max_history), Some(file_mutex)) = (self.max_history, self.file.as_ref()) else {
             return Ok(());
@@ -114,6 +114,7 @@ impl FileLogger {
 
         // Reset cursor to the end for future appends
         file.seek(SeekFrom::End(0))?;
+        drop(file);
 
         Ok(())
     }

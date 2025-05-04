@@ -101,14 +101,12 @@ impl Display for DisplayManager {
             );
 
             // Time spent
-            let time_spent = if let Some(ts) = task.time_spent {
+            let time_spent = task.time_spent.map_or("-".to_string(), |ts| {
                 let hours = ts / 3600;
                 let minutes = (ts % 3600) / 60;
                 let seconds = ts % 60;
                 format!("{hours}h {minutes}m {seconds}s")
-            } else {
-                "-".to_string()
-            };
+            });
             row.add_cell(Cell::new(time_spent).set_alignment(CellAlignment::Right));
 
             // Completed at

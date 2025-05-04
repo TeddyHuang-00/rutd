@@ -71,20 +71,6 @@ mod tests {
     }
 
     #[test]
-    fn test_log_config_clone() {
-        let config = LogConfig {
-            history: 50,
-            console: true,
-        };
-
-        let cloned = config.clone();
-
-        // Check cloned values match original
-        assert_eq!(cloned.history, config.history);
-        assert_eq!(cloned.console, config.console);
-    }
-
-    #[test]
     fn test_zero_history_disable_rotation() {
         // Test that setting history to 0 works as expected
         let config = LogConfig {

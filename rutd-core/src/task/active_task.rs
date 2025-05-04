@@ -18,7 +18,7 @@ pub struct ActiveTask {
 
 impl ActiveTask {
     /// Create a new active task record
-    pub fn new(task_id: String, started_at: String) -> Self {
+    pub const fn new(task_id: String, started_at: String) -> Self {
         Self {
             task_id,
             started_at,

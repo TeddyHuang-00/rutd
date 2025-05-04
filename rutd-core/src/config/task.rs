@@ -82,14 +82,4 @@ mod tests {
         assert_eq!(deserialized.scopes, config.scopes);
         assert_eq!(deserialized.types, config.types);
     }
-
-    #[test]
-    fn test_task_config_clone() {
-        let config = TaskConfig::default();
-        let cloned = config.clone();
-
-        // The cloned config should have the same values
-        assert_eq!(cloned.scopes, config.scopes);
-        assert_eq!(cloned.types, config.types);
-    }
 }

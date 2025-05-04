@@ -105,8 +105,8 @@ impl TaskManager {
 // Public methods for TaskManager
 impl TaskManager {
     /// Create a new Task Manager
-    pub fn new(path_config: PathConfig, git_config: GitConfig) -> Self {
-        TaskManager {
+    pub const fn new(path_config: PathConfig, git_config: GitConfig) -> Self {
+        Self {
             path_config,
             git_config,
         }
@@ -894,12 +894,12 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains("aborted task"));
 
         // Edge case 4: Abort already done task
-        let result = task_manager.abort_task(&Some(done_task.id.clone()));
+        let result = task_manager.abort_task(&Some(done_task.id));
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("completed task"));
 
         // Edge case 5: Abort already aborted task
-        let result = task_manager.abort_task(&Some(aborted_task.id.clone()));
+        let result = task_manager.abort_task(&Some(aborted_task.id));
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("already aborted"));
     }

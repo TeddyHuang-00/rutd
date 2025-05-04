@@ -56,7 +56,7 @@ pub fn app() -> ExitCode {
 
             // Use TaskManager to add a new task
             if task_manager
-                .add_task(&description, priority, scope.clone(), task_type.clone())
+                .add_task(&description, priority, scope, task_type)
                 .inspect(|id| display_manager.show_success(&format!("Added task with ID: {id}")))
                 .inspect_err(|e| display_manager.show_failure(&format!("Fail to add task: {e}")))
                 .is_err()

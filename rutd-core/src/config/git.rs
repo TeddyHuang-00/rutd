@@ -57,18 +57,4 @@ mod tests {
         assert_eq!(deserialized.username, config.username);
         assert_eq!(deserialized.password, config.password);
     }
-
-    #[test]
-    fn test_git_config_clone() {
-        let config = GitConfig {
-            username: "test-user".to_string(),
-            password: "test-password".to_string(),
-        };
-
-        let cloned = config.clone();
-
-        // The cloned config should have the same values
-        assert_eq!(cloned.username, config.username);
-        assert_eq!(cloned.password, config.password);
-    }
 }

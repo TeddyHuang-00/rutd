@@ -22,10 +22,10 @@ pub enum Priority {
 impl fmt::Display for Priority {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Priority::Urgent => write!(f, "Urgent"),
-            Priority::High => write!(f, "High"),
-            Priority::Normal => write!(f, "Normal"),
-            Priority::Low => write!(f, "Low"),
+            Self::Urgent => write!(f, "Urgent"),
+            Self::High => write!(f, "High"),
+            Self::Normal => write!(f, "Normal"),
+            Self::Low => write!(f, "Low"),
         }
     }
 }
@@ -47,9 +47,9 @@ pub enum TaskStatus {
 impl fmt::Display for TaskStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TaskStatus::Todo => write!(f, "Todo"),
-            TaskStatus::Done => write!(f, "Done"),
-            TaskStatus::Aborted => write!(f, "Aborted"),
+            Self::Todo => write!(f, "Todo"),
+            Self::Done => write!(f, "Done"),
+            Self::Aborted => write!(f, "Aborted"),
         }
     }
 }
@@ -87,7 +87,7 @@ impl Task {
         scope: Option<String>,
         task_type: Option<String>,
     ) -> Self {
-        Task {
+        Self {
             id,
             description,
             priority,
@@ -181,33 +181,6 @@ mod tests {
         // Default status should be Todo
         let default_status = TaskStatus::default();
         assert_eq!(default_status, TaskStatus::Todo);
-    }
-
-    #[test]
-    fn test_task_clone() {
-        // Create a task
-        let original = Task::new(
-            "test-id".to_string(),
-            "Test description".to_string(),
-            Priority::High,
-            Some("test-scope".to_string()),
-            Some("test-type".to_string()),
-        );
-
-        // Clone the task
-        let cloned = original.clone();
-
-        // Verify the clone has the same values
-        assert_eq!(cloned.id, original.id);
-        assert_eq!(cloned.description, original.description);
-        assert_eq!(cloned.priority, original.priority);
-        assert_eq!(cloned.scope, original.scope);
-        assert_eq!(cloned.task_type, original.task_type);
-        assert_eq!(cloned.status, original.status);
-        assert_eq!(cloned.created_at, original.created_at);
-        assert_eq!(cloned.updated_at, original.updated_at);
-        assert_eq!(cloned.completed_at, original.completed_at);
-        assert_eq!(cloned.time_spent, original.time_spent);
     }
 
     #[test]

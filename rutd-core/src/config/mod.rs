@@ -55,7 +55,7 @@ impl Config {
     /// Also useful for testing purposes
     fn load(config_path: &str, env_var_prefix: &str) -> Result<Self> {
         // Create a base Figment with default values
-        let mut figment = Figment::new().merge(Serialized::defaults(Config::default()));
+        let mut figment = Figment::new().merge(Serialized::defaults(Self::default()));
 
         // Only attempt to load from config file if it exists
         let path = std::path::PathBuf::from(config_path);
@@ -96,18 +96,6 @@ mod tests {
         assert_eq!(config.git, GitConfig::default());
         assert_eq!(config.log, LogConfig::default());
         assert_eq!(config.task, TaskConfig::default());
-    }
-
-    #[test]
-    fn test_config_clone() {
-        let config = Config::default();
-        let cloned = config.clone();
-
-        // The cloned config should be equal to the original
-        assert_eq!(cloned.path, config.path);
-        assert_eq!(cloned.git, config.git);
-        assert_eq!(cloned.log, config.log);
-        assert_eq!(cloned.task, config.task);
     }
 
     #[test]

@@ -20,7 +20,7 @@ impl GitRepo {
         // If the repository doesn't exist, create a new one
         let repo = Repository::open(path).or_else(|_| Repository::init(path))?;
 
-        Ok(GitRepo { repo })
+        Ok(Self { repo })
     }
 
     /// Clone a remote repository to the local directory
@@ -49,7 +49,7 @@ impl GitRepo {
         match builder.clone(url, path) {
             Ok(repo) => {
                 log::info!("Successfully cloned repository");
-                Ok(GitRepo { repo })
+                Ok(Self { repo })
             }
             Err(e) => {
                 if e.to_string()
@@ -69,7 +69,7 @@ impl GitRepo {
     /// Automatically commit changes
     pub fn commit_changes(&self, message: &str) -> Result<()> {
         let mut index = self.repo.index()?;
-        index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
+        index.add_all(std::iter::once(&"*"), IndexAddOption::DEFAULT, None)?;
         index.write()?;
 
         let signature = Signature::now("rutd", "rutd@auto.commit")?;
@@ -83,10 +83,7 @@ impl GitRepo {
         };
 
         // Create a new commit
-        let parents = match head {
-            Some(ref commit) => vec![commit],
-            None => vec![],
-        };
+        let parents = head.as_ref().map_or(vec![], |commit| vec![commit]);
         let commit_id = self.repo.commit(
             Some("HEAD"),
             &signature,
@@ -135,6 +132,31 @@ impl GitRepo {
 
         log::info!("Syncing with remote repository...");
 
+        // Get the default remote name (usually "origin")
+        let remote_name = "origin";
+
+        // Fetch the latest changes
+        self.fetch_from_remote(remote_name, git_config)?;
+
+        // Get the current branch name
+        let branch_name = self.get_current_branch_name()?;
+        if branch_name.is_none() {
+            return Ok(());
+        }
+        let branch_name = branch_name.unwrap();
+
+        // Try to merge remote changes
+        self.merge_remote_changes(remote_name, &branch_name, prefer)?;
+
+        // Push local changes
+        self.push_to_remote(remote_name, &branch_name, git_config)?;
+
+        log::info!("Successfully synced with remote repository");
+        Ok(())
+    }
+
+    /// Fetch the latest changes from the specified remote
+    fn fetch_from_remote(&self, remote_name: &str, git_config: &GitConfig) -> Result<()> {
         // Set up authentication callbacks
         let mut callbacks = RemoteCallbacks::new();
         let git_config_clone = git_config.clone();
@@ -145,9 +167,6 @@ impl GitRepo {
         // Fetch latest changes
         let mut fetch_options = FetchOptions::new();
         fetch_options.remote_callbacks(callbacks);
-
-        // Get the default remote (usually "origin")
-        let remote_name = "origin";
 
         // Fetch from remote
         log::debug!("Fetching from remote '{remote_name}'");
@@ -173,6 +192,11 @@ impl GitRepo {
             }
         }
 
+        Ok(())
+    }
+
+    /// Get the current branch name, returns None if HEAD is not set
+    fn get_current_branch_name(&self) -> Result<Option<String>> {
         // Get the current branch name
         let head = match self.repo.head() {
             Ok(head) => head,
@@ -180,7 +204,7 @@ impl GitRepo {
                 // If HEAD is not yet set (no commits), create an initial commit
                 if matches!(e.code(), ErrorCode::UnbornBranch | ErrorCode::NotFound) {
                     log::debug!("No HEAD found, repository might be empty");
-                    return Ok(());
+                    return Ok(None);
                 }
                 return Err(e.into());
             }
@@ -193,8 +217,16 @@ impl GitRepo {
         };
 
         log::debug!("Current branch: {branch_name}");
+        Ok(Some(branch_name.to_string()))
+    }
 
-        // Try to merge remote changes
+    /// Merge remote changes into the local branch
+    fn merge_remote_changes(
+        &self,
+        remote_name: &str,
+        branch_name: &str,
+        prefer: MergeStrategy,
+    ) -> Result<()> {
         let remote_branch = format!("refs/remotes/{remote_name}/{branch_name}");
         if let Ok(remote_reference) = self.repo.find_reference(&remote_branch) {
             let remote_commit = remote_reference.peel_to_commit()?;
@@ -204,85 +236,10 @@ impl GitRepo {
             if analysis.0.is_up_to_date() {
                 log::debug!("Local repository is up to date");
             } else if analysis.0.is_fast_forward() {
-                log::debug!("Fast-forwarding local repository");
-
-                // Perform the fast-forward
-                let mut reference = self
-                    .repo
-                    .find_reference(&format!("refs/heads/{branch_name}"))?;
-                reference.set_target(remote_commit.id(), "Fast-forward update")?;
-
-                // Update the working directory
-                self.repo.set_head(&format!("refs/heads/{branch_name}"))?;
-                self.repo
-                    .checkout_head(Some(CheckoutBuilder::new().force()))?;
-
+                self.fast_forward_branch(branch_name, remote_commit.id())?;
                 log::info!("Successfully pulled changes from remote");
             } else if analysis.0.is_normal() {
-                // Need to perform a merge with possible conflicts
-                log::debug!("Merge required - analyzing merge strategy");
-
-                // Create merge options
-                let mut merge_opts = MergeOptions::new();
-                match prefer {
-                    MergeStrategy::None => {
-                        // No automatic conflict resolution
-                        merge_opts.file_favor(FileFavor::Normal);
-                    }
-                    MergeStrategy::Local => {
-                        // Prefer local changes
-                        merge_opts.file_favor(FileFavor::Ours);
-                    }
-                    MergeStrategy::Remote => {
-                        // Prefer remote changes
-                        merge_opts.file_favor(FileFavor::Theirs);
-                    }
-                }
-
-                // Perform the merge
-                self.repo
-                    .merge(&[&annotated_commit], Some(&mut merge_opts), None)?;
-
-                // Handle merge conflicts based on the prefer option
-                let conflicts = self.repo.index()?.conflicts()?.collect::<Vec<_>>();
-                if conflicts.is_empty() {
-                    log::debug!("Successfully merged remote changes");
-                } else {
-                    log::debug!("Merge conflicts detected");
-                }
-                for conflict in conflicts {
-                    let conflict = conflict?;
-                    // Resolve each conflict based on the prefer option
-                    let mut index = self.repo.index()?;
-                    match prefer {
-                        MergeStrategy::Local => {
-                            if let Some(ours) = conflict.our {
-                                index.conflict_remove(Path::new(&OsStr::from_bytes(&ours.path)))?;
-                                index.add_path(Path::new(&OsStr::from_bytes(&ours.path)))?;
-                            }
-                        }
-                        MergeStrategy::Remote => {
-                            if let Some(theirs) = conflict.their {
-                                index
-                                    .conflict_remove(Path::new(&OsStr::from_bytes(&theirs.path)))?;
-                                index.add_path(Path::new(&OsStr::from_bytes(&theirs.path)))?;
-                            }
-                        }
-                        MergeStrategy::None => {
-                            // Skip automatic resolution, tell the user to resolve manually
-                            anyhow::bail!(
-                                "Merge conflicts detected. Please resolve them manually. Then continue with 'sync --continue'"
-                            )
-                        }
-                    };
-                    index.write()?;
-                }
-
-                // Commit the merge
-                let commit_message =
-                    format!("Merge remote-tracking branch '{remote_branch}' into '{branch_name}'");
-                self.commit_merge(&annotated_commit, &commit_message)
-                    .context("Failed to commit merge")?;
+                self.handle_normal_merge(branch_name, &annotated_commit, &remote_branch, prefer)?;
             }
         } else {
             log::debug!(
@@ -290,7 +247,117 @@ impl GitRepo {
             );
         }
 
-        // Push local changes
+        Ok(())
+    }
+
+    /// Perform a fast-forward update of the branch
+    fn fast_forward_branch(&self, branch_name: &str, target_id: git2::Oid) -> Result<()> {
+        log::debug!("Fast-forwarding local repository");
+
+        // Perform the fast-forward
+        let mut reference = self
+            .repo
+            .find_reference(&format!("refs/heads/{branch_name}"))?;
+        reference.set_target(target_id, "Fast-forward update")?;
+
+        // Update the working directory
+        self.repo.set_head(&format!("refs/heads/{branch_name}"))?;
+        self.repo
+            .checkout_head(Some(CheckoutBuilder::new().force()))?;
+
+        Ok(())
+    }
+
+    /// Handle a normal merge with possible conflicts
+    fn handle_normal_merge(
+        &self,
+        branch_name: &str,
+        annotated_commit: &git2::AnnotatedCommit,
+        remote_branch: &str,
+        prefer: MergeStrategy,
+    ) -> Result<()> {
+        // Need to perform a merge with possible conflicts
+        log::debug!("Merge required - analyzing merge strategy");
+
+        // Create merge options
+        let mut merge_opts = MergeOptions::new();
+        match prefer {
+            MergeStrategy::None => {
+                // No automatic conflict resolution
+                merge_opts.file_favor(FileFavor::Normal);
+            }
+            MergeStrategy::Local => {
+                // Prefer local changes
+                merge_opts.file_favor(FileFavor::Ours);
+            }
+            MergeStrategy::Remote => {
+                // Prefer remote changes
+                merge_opts.file_favor(FileFavor::Theirs);
+            }
+        }
+
+        // Perform the merge
+        self.repo
+            .merge(&[annotated_commit], Some(&mut merge_opts), None)?;
+
+        // Handle merge conflicts based on the prefer option
+        self.handle_merge_conflicts(prefer)?;
+
+        // Commit the merge
+        let commit_message =
+            format!("Merge remote-tracking branch '{remote_branch}' into '{branch_name}'");
+        self.commit_merge(annotated_commit, &commit_message)
+            .context("Failed to commit merge")?;
+
+        Ok(())
+    }
+
+    /// Handle merge conflicts based on the specified strategy
+    fn handle_merge_conflicts(&self, prefer: MergeStrategy) -> Result<()> {
+        let conflicts = self.repo.index()?.conflicts()?.collect::<Vec<_>>();
+        if conflicts.is_empty() {
+            log::debug!("Successfully merged remote changes");
+            return Ok(());
+        }
+
+        log::debug!("Merge conflicts detected");
+        for conflict in conflicts {
+            let conflict = conflict?;
+            // Resolve each conflict based on the prefer option
+            let mut index = self.repo.index()?;
+            match prefer {
+                MergeStrategy::Local => {
+                    if let Some(ours) = conflict.our {
+                        index.conflict_remove(Path::new(&OsStr::from_bytes(&ours.path)))?;
+                        index.add_path(Path::new(&OsStr::from_bytes(&ours.path)))?;
+                    }
+                }
+                MergeStrategy::Remote => {
+                    if let Some(theirs) = conflict.their {
+                        index.conflict_remove(Path::new(&OsStr::from_bytes(&theirs.path)))?;
+                        index.add_path(Path::new(&OsStr::from_bytes(&theirs.path)))?;
+                    }
+                }
+                MergeStrategy::None => {
+                    // Skip automatic resolution, tell the user to resolve manually
+                    anyhow::bail!(
+                        "Merge conflicts detected. Please resolve them manually. Then continue with 'sync --continue'"
+                    )
+                }
+            };
+            index.write()?;
+        }
+
+        Ok(())
+    }
+
+    /// Push local changes to the remote repository
+    fn push_to_remote(
+        &self,
+        remote_name: &str,
+        branch_name: &str,
+        git_config: &GitConfig,
+    ) -> Result<()> {
         log::debug!("Pushing to remote '{remote_name}'");
         let mut callbacks = RemoteCallbacks::new();
         callbacks.credentials(move |url, username, allowed_types| {
@@ -303,31 +370,31 @@ impl GitRepo {
         let mut remote = self.repo.find_remote(remote_name)?;
 
         // Check if we have any commits to push
-        if self.repo.head().is_ok() {
-            // Ensure HEAD exists (at least one commit)
-            match remote.push(
-                &[format!("refs/heads/{branch_name}")],
-                Some(&mut push_options),
-            ) {
-                Ok(_) => log::info!("Successfully pushed to remote repository"),
-                Err(e) => {
-                    if e.to_string().contains("non-fast-forward") {
-                        log::info!(
-                            "Cannot push because remote contains work that you do not have locally"
-                        );
-                        return Err(anyhow::anyhow!(
-                            "Push rejected: The remote branch has commits that are not in your local branch. Pull first before pushing."
-                        ));
-                    } else {
-                        return Err(e.into());
-                    }
-                }
-            }
-        } else {
+        if self.repo.head().is_err() {
             log::info!("No commits to push yet");
+            return Ok(());
         }
 
-        log::info!("Successfully synced with remote repository");
+        // Ensure HEAD exists (at least one commit)
+        match remote.push(
+            &[format!("refs/heads/{branch_name}")],
+            Some(&mut push_options),
+        ) {
+            Ok(_) => log::info!("Successfully pushed to remote repository"),
+            Err(e) => {
+                if e.to_string().contains("non-fast-forward") {
+                    log::info!(
+                        "Cannot push because remote contains work that you do not have locally"
+                    );
+                    anyhow::bail!(
+                        "Push rejected: The remote branch has commits that are not in your local branch. Pull first before pushing."
+                    );
+                } else {
+                    return Err(e.into());
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -354,11 +421,6 @@ impl GitRepo {
         self.repo.cleanup_state()?;
 
         Ok(())
-    }
-
-    #[cfg(test)]
-    pub fn get_repo(&self) -> &Repository {
-        &self.repo
     }
 }
 
@@ -439,6 +501,12 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+
+    impl GitRepo {
+        pub const fn get_repo(&self) -> &Repository {
+            &self.repo
+        }
+    }
 
     #[test]
     fn test_init_repository() {

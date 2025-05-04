@@ -15,10 +15,10 @@ pub enum CliPriority {
 impl From<CliPriority> for Priority {
     fn from(cli_priority: CliPriority) -> Self {
         match cli_priority {
-            CliPriority::Urgent => Priority::Urgent,
-            CliPriority::High => Priority::High,
-            CliPriority::Normal => Priority::Normal,
-            CliPriority::Low => Priority::Low,
+            CliPriority::Urgent => Self::Urgent,
+            CliPriority::High => Self::High,
+            CliPriority::Normal => Self::Normal,
+            CliPriority::Low => Self::Low,
         }
     }
 }
@@ -33,9 +33,9 @@ pub enum CliTaskStatus {
 impl From<CliTaskStatus> for TaskStatus {
     fn from(cli_status: CliTaskStatus) -> Self {
         match cli_status {
-            CliTaskStatus::Todo => TaskStatus::Todo,
-            CliTaskStatus::Done => TaskStatus::Done,
-            CliTaskStatus::Aborted => TaskStatus::Aborted,
+            CliTaskStatus::Todo => Self::Todo,
+            CliTaskStatus::Done => Self::Done,
+            CliTaskStatus::Aborted => Self::Aborted,
         }
     }
 }
@@ -50,9 +50,9 @@ pub enum CliMergeStrategy {
 impl From<CliMergeStrategy> for MergeStrategy {
     fn from(cli_strategy: CliMergeStrategy) -> Self {
         match cli_strategy {
-            CliMergeStrategy::None => MergeStrategy::None,
-            CliMergeStrategy::Local => MergeStrategy::Local,
-            CliMergeStrategy::Remote => MergeStrategy::Remote,
+            CliMergeStrategy::None => Self::None,
+            CliMergeStrategy::Local => Self::Local,
+            CliMergeStrategy::Remote => Self::Remote,
         }
     }
 }

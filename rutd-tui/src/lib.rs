@@ -12,7 +12,7 @@ pub mod app {
 
     impl TuiApp {
         /// Create a new TUI application instance
-        pub fn new(task_manager: TaskManager) -> Self {
+        pub const fn new(task_manager: TaskManager) -> Self {
             Self { task_manager }
         }
 

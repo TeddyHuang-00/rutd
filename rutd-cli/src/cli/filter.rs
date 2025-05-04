@@ -85,7 +85,7 @@ pub struct FilterOptions {
 // Implement From trait to convert CliFilterOptions to FilterOptions
 impl From<FilterOptions> for Filter {
     fn from(cli_filter: FilterOptions) -> Self {
-        Filter {
+        Self {
             priority: cli_filter.priority.map(|p| p.into()),
             task_scope: cli_filter.task_scope,
             task_type: cli_filter.task_type,
