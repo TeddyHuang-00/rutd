@@ -34,15 +34,16 @@ pub struct FilterOptions {
 
     /// Filter by scope (project name)
     #[cfg_attr(feature = "cli", arg(
-        short = 'c', long,
+        short = 'c', long = "scope",
+        value_name = "SCOPE",
         add = ArgValueCompleter::new(complete::complete_scope)
     ))]
-    pub scope: Option<String>,
+    pub task_scope: Option<String>,
 
     /// Filter by type
     #[cfg_attr(feature = "cli", arg(
-        short, long,
-        value_name = "type",
+        short = 't', long = "type",
+        value_name = "TYPE",
         add = ArgValueCompleter::new(complete::complete_type)
     ))]
     pub task_type: Option<String>,
@@ -53,7 +54,8 @@ pub struct FilterOptions {
 
     /// Filter by creation date range
     #[cfg_attr(feature = "cli", arg(
-        short = 'a', long,
+        short = 'a', long = "added",
+        value_name = "DATERANGE",
         value_parser = parse_date_range,
         allow_hyphen_values = true,
         long_help = DATE_LONG_HELP
@@ -62,7 +64,8 @@ pub struct FilterOptions {
 
     /// Filter by last update date range
     #[cfg_attr(feature = "cli", arg(
-        short, long,
+        short = 'u', long = "updated",
+        value_name = "DATERANGE",
         value_parser = parse_date_range,
         allow_hyphen_values = true,
         long_help = DATE_LONG_HELP
@@ -71,7 +74,8 @@ pub struct FilterOptions {
 
     /// Filter by completion date range, including cancelled tasks
     #[cfg_attr(feature = "cli", arg(
-        short = 'd', long,
+        short = 'd', long = "done",
+        value_name = "DATERANGE",
         value_parser = parse_date_range,
         allow_hyphen_values = true,
         long_help = DATE_LONG_HELP
@@ -79,7 +83,7 @@ pub struct FilterOptions {
     pub completion_time: Option<DateRange>,
 
     /// Enable fuzzy matching for description
-    #[cfg_attr(feature = "cli", arg(short, long))]
+    #[cfg_attr(feature = "cli", arg(short, long, value_name = "DESCRIPTION"))]
     pub fuzzy: Option<String>,
 }
 

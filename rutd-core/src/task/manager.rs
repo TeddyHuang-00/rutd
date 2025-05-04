@@ -41,7 +41,7 @@ impl TaskManager {
                 return false;
             }
         }
-        if let Some(s) = &filter_options.scope {
+        if let Some(s) = &filter_options.task_scope {
             if task.scope.as_deref() != Some(s) {
                 return false;
             }

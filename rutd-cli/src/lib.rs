@@ -41,7 +41,7 @@ pub fn app() -> ExitCode {
         Commands::Add {
             description,
             priority,
-            scope,
+            task_scope: scope,
             task_type,
         } => {
             log::trace!("Add task command");

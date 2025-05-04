@@ -35,15 +35,16 @@ pub enum Commands {
 
         /// Task scope (project name)
         #[arg(
-            short, long,
+            short = 's', long = "scope",
+            value_name = "SCOPE",
             add = ArgValueCompleter::new(complete::complete_scope)
         )]
-        scope: Option<String>,
+        task_scope: Option<String>,
 
         /// Task type (e.g., feat, fix, other, etc.)
         #[arg(
-            short, long,
-            value_name = "type",
+            short = 't', long = "type",
+            value_name = "TYPE",
             add = ArgValueCompleter::new(complete::complete_type)
         )]
         task_type: Option<String>,
