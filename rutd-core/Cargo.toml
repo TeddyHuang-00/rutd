@@ -19,9 +19,10 @@ toml.workspace = true
 uuid.workspace = true
 figment.workspace = true
 clap = { workspace = true, optional = true }
+clap_complete = { workspace = true, optional = true }
 simple_logger.workspace = true
 fuzzy-matcher.workspace = true
 
 [features]
 default = []
-cli = ["dep:clap"]
+cli = ["dep:clap", "dep:clap_complete"]

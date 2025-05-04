@@ -2,8 +2,12 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, Days, Local, Months, NaiveDate, TimeZone, Weekday};
 #[cfg(feature = "cli")]
 use clap::Args;
+#[cfg(feature = "cli")]
+use clap_complete::engine::ArgValueCompleter;
 
 use super::{Priority, TaskStatus};
+#[cfg(feature = "cli")]
+use crate::complete;
 
 const DATE_LONG_HELP: &str = "
 Date range format: [<date>]..[<date>] or <date>
@@ -29,14 +33,19 @@ pub struct FilterOptions {
     #[cfg_attr(feature = "cli", arg(value_enum, short, long))]
     pub priority: Option<Priority>,
 
-    // TODO: Add completion candidate based on configuration and present scopes
     /// Filter by scope (project name)
-    #[cfg_attr(feature = "cli", arg(short = 'c', long))]
+    #[cfg_attr(feature = "cli", arg(
+        short = 'c', long,
+        add = ArgValueCompleter::new(complete::complete_scope)
+    ))]
     pub scope: Option<String>,
 
-    // TODO: Add completion candidate based on configuration and present task types
     /// Filter by type
-    #[cfg_attr(feature = "cli", arg(short, long, value_name = "type"))]
+    #[cfg_attr(feature = "cli", arg(
+        short, long,
+        value_name = "type",
+        add = ArgValueCompleter::new(complete::complete_type)
+    ))]
     pub task_type: Option<String>,
 
     /// Filter by status

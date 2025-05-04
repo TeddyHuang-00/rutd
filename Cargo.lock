@@ -1052,6 +1052,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "clap_complete",
  "figment",
  "fuzzy-matcher",
  "git2",
