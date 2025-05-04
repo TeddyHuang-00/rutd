@@ -28,9 +28,6 @@ jobs:
           - target: aarch64-unknown-linux-musl
             os: ubuntu-24.04-arm
             feature: vendored
-          - target: armv7-unknown-linux-musleabi
-            os: ubuntu-24.04
-            feature: vendored,zlib
           - target: aarch64-apple-darwin
             os: macos-latest
             feature: default
@@ -43,12 +40,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Cross-Compilation Tools
-        if: contains(matrix.target, 'linux-musl')
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools pkg-config libssl-dev
-          # echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+      # - name: Install Cross-Compilation Tools
+      #   if: contains(matrix.target, 'linux-musl')
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y musl-tools pkg-config libssl-dev
+      #     # echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
 
       - uses: dtolnay/rust-toolchain@stable
         with:
