@@ -11,7 +11,7 @@ readme.workspace = true
 [dependencies]
 rutd-core = { path = "../rutd-core", features = [
     "cli",
-], version = "0.2.2-rc.1" }
+], version = "0.3.0" }
 anyhow.workspace = true
 clap.workspace = true
 clap_complete = { workspace = true, features = ["unstable-dynamic"] }
