@@ -13,6 +13,10 @@ deps:
 check: format
     cargo +nightly clippy --workspace --all-targets --fix --allow-staged
 
+# Unit tests
+test: check
+    cargo test --workspace --all-targets
+
 # Test release
 [no-cd]
 release-test TARGET:

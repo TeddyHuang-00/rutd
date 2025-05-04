@@ -82,3 +82,118 @@ pub fn clear_active_task(file_path: &Path) -> Result<()> {
     log::info!("Cleared active task");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use chrono::Local;
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn test_active_task_new() {
+        let task_id = "test-task-id".to_string();
+        let started_at = Local::now().to_rfc3339();
+
+        let active_task = ActiveTask::new(task_id.clone(), started_at.clone());
+
+        assert_eq!(active_task.task_id, task_id);
+        assert_eq!(active_task.started_at, started_at);
+    }
+
+    #[test]
+    fn test_save_load_active_task() {
+        // Create a temporary directory for testing
+        let temp_dir = tempdir().unwrap();
+        let active_task_file = temp_dir.path().join("active_task.toml");
+
+        // Create an active task
+        let task_id = "test-task-id".to_string();
+        let started_at = Local::now().to_rfc3339();
+        let active_task = ActiveTask::new(task_id.clone(), started_at.clone());
+
+        // Save the active task
+        let save_result = save_active_task(&active_task_file, &active_task);
+        assert!(save_result.is_ok());
+        assert!(active_task_file.exists());
+
+        // Load the active task
+        let load_result = load_active_task(&active_task_file);
+        assert!(load_result.is_ok());
+
+        let loaded_task_opt = load_result.unwrap();
+        assert!(loaded_task_opt.is_some());
+
+        let loaded_task = loaded_task_opt.unwrap();
+        assert_eq!(loaded_task.task_id, task_id);
+        assert_eq!(loaded_task.started_at, started_at);
+    }
+
+    #[test]
+    fn test_clear_active_task() {
+        // Create a temporary directory for testing
+        let temp_dir = tempdir().unwrap();
+        let active_task_file = temp_dir.path().join("active_task.toml");
+
+        // Create and save an active task
+        let task_id = "test-task-id".to_string();
+        let started_at = Local::now().to_rfc3339();
+        let active_task = ActiveTask::new(task_id, started_at);
+
+        let save_result = save_active_task(&active_task_file, &active_task);
+        assert!(save_result.is_ok());
+        assert!(active_task_file.exists());
+
+        // Clear the active task
+        let clear_result = clear_active_task(&active_task_file);
+        assert!(clear_result.is_ok());
+        assert!(!active_task_file.exists());
+    }
+
+    #[test]
+    fn test_load_nonexistent_active_task() {
+        // Create a temporary directory for testing
+        let temp_dir = tempdir().unwrap();
+        let nonexistent_file = temp_dir.path().join("nonexistent.toml");
+
+        // Try to load a nonexistent task
+        let load_result = load_active_task(&nonexistent_file);
+        assert!(load_result.is_ok());
+
+        let loaded_task_opt = load_result.unwrap();
+        assert!(loaded_task_opt.is_none());
+    }
+
+    #[test]
+    fn test_clear_nonexistent_active_task() {
+        // Create a temporary directory for testing
+        let temp_dir = tempdir().unwrap();
+        let nonexistent_file = temp_dir.path().join("nonexistent.toml");
+
+        // Try to clear a nonexistent task
+        let clear_result = clear_active_task(&nonexistent_file);
+        assert!(clear_result.is_ok());
+    }
+
+    #[test]
+    fn test_active_task_serialization() {
+        // Create an active task
+        let task_id = "test-task-id".to_string();
+        let started_at = "2023-01-01T12:00:00+00:00".to_string();
+        let active_task = ActiveTask::new(task_id, started_at);
+
+        // Serialize to TOML
+        let serialize_result = toml::to_string(&active_task);
+        assert!(serialize_result.is_ok());
+
+        let toml_string = serialize_result.unwrap();
+
+        // Deserialize from TOML
+        let deserialize_result: Result<ActiveTask, _> = toml::from_str(&toml_string);
+        assert!(deserialize_result.is_ok());
+
+        let deserialized_task = deserialize_result.unwrap();
+        assert_eq!(deserialized_task.task_id, active_task.task_id);
+        assert_eq!(deserialized_task.started_at, active_task.started_at);
+    }
+}

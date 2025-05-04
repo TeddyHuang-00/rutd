@@ -116,7 +116,7 @@ pub enum Commands {
         filter: FilterOptions,
 
         /// Confirm deletion without prompting
-        #[arg(short, long)]
+        #[arg(long)]
         force: bool,
     },
     /// Sync with remote repository
@@ -137,4 +137,221 @@ pub enum Commands {
         #[arg(value_hint = clap::ValueHint::Url)]
         url: String,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    use super::*;
+
+    #[test]
+    fn test_cli_command_verifies() {
+        // This test verifies that the Cli struct's command specification is valid
+        Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn test_cli_command_parse() {
+        // Test basic command parsing without arguments
+        let result = Cli::try_parse_from(["rutd", "list"]);
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::List { filter, stats } => {
+                assert!(!stats);
+                // Default filter should be empty
+                assert!(filter.priority.is_none());
+                assert!(filter.task_scope.is_none());
+                assert!(filter.task_type.is_none());
+                assert!(filter.status.is_none());
+            }
+            _ => panic!("Should have parsed as list command"),
+        }
+    }
+
+    #[test]
+    fn test_add_command() {
+        // Test the Add command with various arguments
+        let result = Cli::try_parse_from([
+            "rutd",
+            "add",
+            "Test description",
+            "--priority",
+            "high",
+            "--scope",
+            "test-project",
+            "--type",
+            "feature",
+        ]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Add {
+                description,
+                priority,
+                task_scope,
+                task_type,
+            } => {
+                assert_eq!(description, "Test description");
+                assert_eq!(priority, Priority::High);
+                assert_eq!(task_scope, Some("test-project".to_string()));
+                assert_eq!(task_type, Some("feature".to_string()));
+            }
+            _ => panic!("Should have parsed as add command"),
+        }
+    }
+
+    #[test]
+    fn test_done_command() {
+        // Test the Done command
+        let result = Cli::try_parse_from(["rutd", "done", "1a2b3c"]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Done { id } => {
+                assert_eq!(id, "1a2b3c");
+            }
+            _ => panic!("Should have parsed as done command"),
+        }
+    }
+
+    #[test]
+    fn test_start_command() {
+        // Test the Start command
+        let result = Cli::try_parse_from(["rutd", "start", "1a2b3c"]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Start { id } => {
+                assert_eq!(id, "1a2b3c");
+            }
+            _ => panic!("Should have parsed as start command"),
+        }
+    }
+
+    #[test]
+    fn test_stop_command() {
+        // Test the Stop command (no arguments)
+        let result = Cli::try_parse_from(["rutd", "stop"]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Stop {} => (),
+            _ => panic!("Should have parsed as stop command"),
+        }
+    }
+
+    #[test]
+    fn test_abort_command_with_id() {
+        // Test the Abort command with ID
+        let result = Cli::try_parse_from(["rutd", "abort", "1a2b3c"]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Abort { id } => {
+                assert_eq!(id, Some("1a2b3c".to_string()));
+            }
+            _ => panic!("Should have parsed as abort command"),
+        }
+    }
+
+    #[test]
+    fn test_abort_command_without_id() {
+        // Test the Abort command without ID (should abort active task)
+        let result = Cli::try_parse_from(["rutd", "abort"]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Abort { id } => {
+                assert_eq!(id, None);
+            }
+            _ => panic!("Should have parsed as abort command"),
+        }
+    }
+
+    #[test]
+    fn test_clean_command() {
+        // Test the Clean command with force flag
+        let result = Cli::try_parse_from(["rutd", "clean", "--force"]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Clean { filter, force } => {
+                assert!(force);
+                // Default filter should be empty
+                assert!(filter.priority.is_none());
+                assert!(filter.task_scope.is_none());
+                assert!(filter.task_type.is_none());
+                assert!(filter.status.is_none());
+            }
+            _ => panic!("Should have parsed as clean command"),
+        }
+    }
+
+    #[test]
+    fn test_sync_command() {
+        // Test the Sync command with prefer option
+        let result = Cli::try_parse_from(["rutd", "sync", "--prefer", "local"]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Sync { prefer } => {
+                assert_eq!(prefer, MergeStrategy::Local);
+            }
+            _ => panic!("Should have parsed as sync command"),
+        }
+    }
+
+    #[test]
+    fn test_clone_command() {
+        // Test the Clone command
+        let result = Cli::try_parse_from(["rutd", "clone", "https://example.com/repo.git"]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Clone { url } => {
+                assert_eq!(url, "https://example.com/repo.git");
+            }
+            _ => panic!("Should have parsed as clone command"),
+        }
+    }
+
+    #[test]
+    fn test_verbosity_flag() {
+        // Test verbosity flag with different counts
+        let result = Cli::try_parse_from(["rutd", "-vv", "list"]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        assert_eq!(cli.verbose, 2);
+
+        // Test with long version
+        let result = Cli::try_parse_from(["rutd", "--verbose", "--verbose", "list"]);
+
+        assert!(result.is_ok());
+
+        let cli = result.unwrap();
+        assert_eq!(cli.verbose, 2);
+    }
 }

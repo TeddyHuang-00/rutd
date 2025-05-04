@@ -34,3 +34,62 @@ impl fmt::Display for MergeStrategy {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_merge_strategy_default() {
+        let strategy = MergeStrategy::default();
+        assert_eq!(strategy, MergeStrategy::None);
+    }
+
+    #[test]
+    fn test_merge_strategy_display() {
+        assert_eq!(MergeStrategy::None.to_string(), "None");
+        assert_eq!(MergeStrategy::Local.to_string(), "Local");
+        assert_eq!(MergeStrategy::Remote.to_string(), "Remote");
+    }
+
+    #[test]
+    fn test_merge_strategy_equality() {
+        assert_eq!(MergeStrategy::None, MergeStrategy::None);
+        assert_eq!(MergeStrategy::Local, MergeStrategy::Local);
+        assert_eq!(MergeStrategy::Remote, MergeStrategy::Remote);
+
+        assert_ne!(MergeStrategy::None, MergeStrategy::Local);
+        assert_ne!(MergeStrategy::None, MergeStrategy::Remote);
+        assert_ne!(MergeStrategy::Local, MergeStrategy::Remote);
+    }
+
+    #[test]
+    fn test_merge_strategy_copy() {
+        let strategy1 = MergeStrategy::Local;
+        let strategy2 = strategy1;
+
+        // After copying, both variables should refer to the same value
+        assert_eq!(strategy1, strategy2);
+
+        // And modifying one shouldn't affect the other (this test is somewhat redundant
+        // since Copy types are implicitly Clone and create independent values)
+        let strategy3 = MergeStrategy::Remote;
+        assert_ne!(strategy2, strategy3);
+    }
+
+    #[test]
+    fn test_merge_strategy_clone() {
+        let strategy1 = MergeStrategy::Local;
+        let strategy2 = strategy1;
+
+        // The cloned value should equal the original
+        assert_eq!(strategy1, strategy2);
+    }
+
+    #[test]
+    fn test_merge_strategy_debug() {
+        // Test that debug formatting works
+        let debug_str = format!("{:?}", MergeStrategy::Local);
+        assert!(debug_str.contains("Local"));
+    }
+}

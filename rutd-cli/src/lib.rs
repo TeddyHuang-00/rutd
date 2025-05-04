@@ -17,9 +17,12 @@ pub fn app() -> ExitCode {
     };
 
     // Initialize logging system
-    if let Err(e) =
-        rutd_core::logging::init_logger(cli.verbose, config.path.log_file(), config.log.max_history)
-    {
+    if let Err(e) = rutd_core::logging::init_logger(
+        cli.verbose,
+        config.path.log_file(),
+        config.log.history,
+        config.log.console,
+    ) {
         eprintln!("{e}");
         return ExitCode::FAILURE;
     }

@@ -22,6 +22,7 @@ clap = { workspace = true, optional = true }
 clap_complete = { workspace = true, optional = true }
 simple_logger.workspace = true
 fuzzy-matcher.workspace = true
+tempfile.workspace = true
 
 [features]
 default = []
