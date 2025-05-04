@@ -30,7 +30,7 @@ jobs:
             feature: vendored
           - target: armv7-unknown-linux-musleabi
             os: ubuntu-24.04
-            feature: vendored
+            feature: vendored,zlib
           - target: aarch64-apple-darwin
             os: macos-latest
             feature: default
