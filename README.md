@@ -23,14 +23,22 @@ RuTD ("Rust To Do" or "Rush To Do") is a high-performance todo list manager buil
 
 ## Installation
 
-```bash
-# Install from crates.io
-cargo install rutd
+### Pre-built Binaries
 
-# Or build from source
-git clone https://github.com/yourusername/rutd.git
-cd rutd
-cargo build --release
+Pre-built binaries are available for Linux, macOS. You can download the latest release from the [Releases page](https://github.com/TeddyHuang-00/rutd/releases).
+
+### Build from source
+
+RuTD provides both command-line and TUI interfaces (coming soon). You can install both via:
+
+```bash
+cargo install rutd
+```
+
+or you can install only the CLI version (and TUI will work the same way in the future):
+
+```bash
+cargo install rutd-cli
 ```
 
 ## Quick Start
@@ -108,10 +116,12 @@ Tasks are stored in `~/.rutd` directory by default. Configuration options will b
 ## Acknowledgments
 
 RuTD draws inspiration from:
+
 - [dstask](https://github.com/naggie/dstask) for its CLI-first approach to task management
 - [taskwarrior](https://taskwarrior.org/) for advanced task filtering concepts
 
 And the development process heavily relies on LLM tools. Huge shout out to:
+
 - [Roo Code](https://roocode.com/)
 - [GitHub Copilot](https://github.com/features/copilot)
 - [Claude AI](https://claude.ai/)
