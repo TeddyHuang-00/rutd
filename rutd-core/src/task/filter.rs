@@ -22,9 +22,8 @@ Relative format also supports:
 1. '+<date>': exact offset from the current date. Default behavior is to
    round the date to the beginning of the cycle if used as start or the
    end of the cycle if used as end.
-2. !!!WIP!!! Combinations: e.g., '5d3w', '+1m2d', etc. The last date
-   unit is used to determine the cycle for rounding in non-exact mode.
-   NOTE: This is WIP, not yet available.";
+2. Combinations: e.g., '5d3w', '+1m2d', etc. The last date
+   unit is used to determine the cycle for rounding in non-exact mode.";
 /// Filter options for task queries
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "cli", derive(Args))]
@@ -222,84 +221,119 @@ fn parse_absolute_date<Tz: TimeZone>(
     ))
 }
 
-// TODO: Support relative date with multiple units, e.g., 5d3w, +1m2d, etc.
 fn parse_relative_date<Tz: TimeZone>(
     date_str: &str,
     now: DateTime<Tz>,
     is_end: bool,
 ) -> Result<DateTime<Tz>> {
-    // Exact delta by using '+'
-    let unit = date_str.chars().last().unwrap();
+    // Check if exact mode (starts with '+')
     let exact = date_str.starts_with('+');
-    let date_str = &date_str[exact as usize..date_str.len() - 1];
+    let date_str = if exact { &date_str[1..] } else { date_str };
 
-    // Certain number of days/weeks/months/years
-    let num = if date_str.is_empty() {
-        // Writing 'd', 'w', 'm', or 'y' means 0 days/weeks/months/years,
-        // meaning the current cycle
-        0
-    } else {
-        match date_str.parse::<i64>() {
-            // If a number is specified, it must be positive
-            Ok(num) if num.is_positive() => num as u32,
-            _ => anyhow::bail!("Invalid number in date string: {}", date_str),
-        }
-    };
-    let date = match unit {
-        'd' => now.clone().checked_sub_days(Days::new(num.into())),
-        'w' => now.clone().checked_sub_days(Days::new((num * 7).into())),
-        'm' => now.clone().checked_sub_months(Months::new(num)),
-        'y' => now.clone().checked_sub_months(Months::new(num * 12)),
-        _ => unreachable!(),
-    }
-    .unwrap();
-    let mut date = if !exact {
+    // Parse multiple units
+    let mut remaining = date_str;
+    let mut offset_days = 0;
+    let mut offset_months = 0;
+    let mut last_unit = 'd'; // Default unit
+
+    // Regex would be cleaner but avoiding additional dependencies
+    while !remaining.is_empty() {
+        // Find the next unit (d, w, m, y)
+        let Some(pos) = remaining.find(|c| "dwmy".contains(c)) else {
+            anyhow::bail!("Missing unit (d/w/m/y): {}", remaining);
+        };
+
+        let unit = remaining.chars().nth(pos).unwrap();
+        let num_str = &remaining[..pos];
+
+        // Parse the number (empty means 0, like in 'd', 'w')
+        let num = if num_str.is_empty() {
+            0
+        } else {
+            match num_str.parse::<u32>() {
+                Ok(num) => num,
+                _ => anyhow::bail!("Invalid number in date component: {}", num_str),
+            }
+        };
+
+        // Accumulate the offset
         match unit {
+            'd' => offset_days += num,
+            'w' => offset_days += num * 7,
+            'm' => offset_months += num,
+            'y' => offset_months += num * 12,
+            _ => unreachable!(),
+        }
+
+        // Update last unit and remaining string
+        last_unit = unit;
+        remaining = &remaining[pos + 1..];
+    }
+
+    // Calculate the date by subtracting the accumulated offset
+    let mut date = now
+        .clone()
+        .checked_sub_months(Months::new(offset_months))
+        .unwrap()
+        .checked_sub_days(Days::new(offset_days.into()))
+        .unwrap();
+
+    // Round the date based on the last unit if not in exact mode
+    if !exact {
+        date = match last_unit {
             // Clear time part
-            'd' => date.date_naive().and_hms_opt(0, 0, 0).unwrap(),
+            'd' => DateTime::<Tz>::from_naive_utc_and_offset(
+                date.date_naive().and_hms_opt(0, 0, 0).unwrap(),
+                now.offset().to_owned(),
+            ),
             // Set to the first day of the week and clear time part
             'w' => {
                 let first_day_of_week = date.date_naive().week(Weekday::Mon);
-                first_day_of_week.first_day().and_hms_opt(0, 0, 0).unwrap()
+                DateTime::<Tz>::from_naive_utc_and_offset(
+                    first_day_of_week.first_day().and_hms_opt(0, 0, 0).unwrap(),
+                    now.offset().to_owned(),
+                )
             }
             // Set to the first day of the month and clear time part
-            'm' => date
-                .date_naive()
-                .with_day(1)
-                .unwrap()
-                .and_hms_opt(0, 0, 0)
-                .unwrap(),
+            'm' => DateTime::<Tz>::from_naive_utc_and_offset(
+                date.date_naive()
+                    .with_day(1)
+                    .unwrap()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap(),
+                now.offset().to_owned(),
+            ),
             // Set to the first day of the year and clear time part
-            'y' => date
-                .date_naive()
-                .with_month(1)
-                .unwrap()
-                .with_day(1)
-                .unwrap()
-                .and_hms_opt(0, 0, 0)
-                .unwrap(),
+            'y' => DateTime::<Tz>::from_naive_utc_and_offset(
+                date.date_naive()
+                    .with_month(1)
+                    .unwrap()
+                    .with_day(1)
+                    .unwrap()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap(),
+                now.offset().to_owned(),
+            ),
             _ => unreachable!(),
-        }
-    } else {
-        date.naive_local()
-    };
+        };
+    }
 
     // Adjust the end date to the last moment of the cycle if not exact
     if is_end && !exact {
-        date = match unit {
-            'd' => date.checked_add_days(Days::new(1)),
-            'w' => date.checked_add_days(Days::new(7)),
-            'm' => date.checked_add_months(Months::new(1)),
-            'y' => date.checked_add_months(Months::new(12)),
+        let naive_date = date.naive_local();
+        let adjusted_date = match last_unit {
+            'd' => naive_date.checked_add_days(Days::new(1)),
+            'w' => naive_date.checked_add_days(Days::new(7)),
+            'm' => naive_date.checked_add_months(Months::new(1)),
+            'y' => naive_date.checked_add_months(Months::new(12)),
             _ => unreachable!(),
         }
         .unwrap();
+
+        date = DateTime::<Tz>::from_naive_utc_and_offset(adjusted_date, now.offset().to_owned());
     }
 
-    Ok(DateTime::<Tz>::from_naive_utc_and_offset(
-        date,
-        now.offset().to_owned(),
-    ))
+    Ok(date)
 }
 
 // Parse date range from string for clap
