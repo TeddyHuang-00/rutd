@@ -24,3 +24,4 @@ simple_logger.workspace = true
 default = []
 debug = ["clap_complete/debug"]
 vendored = ["rutd-core/vendored"]
+zlib = ["rutd-core/zlib"]

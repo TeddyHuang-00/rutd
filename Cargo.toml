@@ -23,6 +23,7 @@ rutd-cli = { path = "rutd-cli", version = "0.3.0" }
 [features]
 default = []
 vendored = ["rutd-cli/vendored"]
+zlib = ["rutd-cli/zlib"]
 
 [[bin]]
 name = "rutd-cli"
