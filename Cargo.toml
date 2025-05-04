@@ -20,6 +20,10 @@ clap_complete.workspace = true
 rutd-cli = { path = "rutd-cli", version = "0.3.0" }
 # rutd-tui = { path = "rutd-tui", version = "0.2.1-rc.3" }
 
+[features]
+default = []
+vendored = ["rutd-cli/vendored"]
+
 [[bin]]
 name = "rutd-cli"
 path = "src/cli.rs"

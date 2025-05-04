@@ -9,12 +9,10 @@ license.workspace = true
 readme.workspace = true
 
 [dependencies]
-rutd-core = { path = "../rutd-core", features = [
-    "cli",
-], version = "0.3.0" }
+rutd-core = { path = "../rutd-core", features = ["cli"], version = "0.3.0" }
 anyhow.workspace = true
 clap.workspace = true
-clap_complete = { workspace = true, features = ["unstable-dynamic"] }
+clap_complete.workspace = true
 colored.workspace = true
 comfy-table.workspace = true
 dialoguer.workspace = true
@@ -25,3 +23,4 @@ simple_logger.workspace = true
 [features]
 default = []
 debug = ["clap_complete/debug"]
+vendored = ["rutd-core/vendored"]
