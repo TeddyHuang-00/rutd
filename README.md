@@ -1,112 +1,127 @@
-# RuTD
+# RuTD - Rust Todo Manager
 
-RuTD stands for "Rush To Do" or "Rust To Do". It is a simple command line tool for managing your to-do list in Rust. It is designed to be fast, easy to use, flexible, and git friendly.
+[![MIT License](https://img.shields.io/github/license/TeddyHuang-00/rutd)](./LICENSE)
+[![Crates.io Version](https://img.shields.io/crates/v/rutd)](https://crates.io/crates/rutd)
+[![Crates.io Total Downloads](https://img.shields.io/crates/d/rutd)](https://crates.io/crates/rutd)
+[![GitHub branch status](https://img.shields.io/github/checks-status/TeddyHuang-00/rutd/main)](https://github.com/TeddyHuang-00/rutd/actions)
+[![GitHub Stars](https://img.shields.io/github/stars/TeddyHuang-00/rutd)](https://github.com/TeddyHuang-00/rutd)
 
-⚠️ RuTD is a work in progress and is not yet feature complete.
+RuTD ("Rust To Do" or "Rush To Do") is a high-performance todo list manager built in Rust. It's designed for developers and power users who value efficiency, control, and Git integration in their task management workflow.
 
-## Shell completion
+**Status**: RuTD is stable and feature-rich with core and advanced functionality complete. New features are being actively developed.
 
-RuTD supports shell completion with `clap_complete`. For better experience, RuTD uses dynamic completion for commands, so it is recommended to source the completion script in your shell configuration file. Specific instructions for each shell are provided below.
+## Key Features
+
+- **Fast & Lightweight**: Written in Rust for excellent performance and minimal resource usage
+- **Git-Integrated**: Automatically tracks task changes in Git for version control and syncing
+- **CLI-First**: Powerful command-line interface with intuitive commands and filtering
+- **Flexible Storage**: Task data stored in TOML format, one file per task
+- **Developer-Friendly**: Designed by developers, for developers
+- **Conventional Commits**: Automated commit message generation following standards
+- **Dynamic Shell Completions**: Built-in completion for Bash, Zsh, Fish, and Elvish
+- **Advanced Filtering**: Powerful query capabilities for finding and organizing tasks
+
+## Installation
+
+```bash
+# Install from crates.io
+cargo install rutd
+
+# Or build from source
+git clone https://github.com/yourusername/rutd.git
+cd rutd
+cargo build --release
+```
+
+## Quick Start
+
+```bash
+# Add a new task
+rutd add "Implement new feature" --priority high --scope backend --type feat
+
+# List all tasks
+rutd list
+
+# List high priority tasks
+rutd list --priority high
+
+# Mark a task as done (replace task-id with the actual ID)
+rutd done task-id
+
+# Edit a task
+rutd edit task-id
+```
+
+## Shell Completion
+
+RuTD supports shell completion with `clap_complete`. For better experience, RuTD uses dynamic completion for commands, so it is recommended to source the completion script in your shell configuration file.
 
 ### Bash
 
-Add the following line to your `~/.bashrc` or `~/.bash_profile`:
-
 ```bash
-source <(COMPLETE=bash your_program)
+source <(COMPLETE=bash rutd)
 ```
 
 ### Zsh
 
-Add the following line to your `~/.zshrc`:
-
 ```zsh
-source <(COMPLETE=zsh your_program)
+source <(COMPLETE=zsh rutd)
 ```
 
 ### Fish
 
-Add the following line to your `~/.config/fish/config.fish`:
-
 ```fish
-source (COMPLETE=fish your_program | psub)
+source (COMPLETE=fish rutd | psub)
 ```
 
 ### Elvish
 
-Add the following line to your `~/.elvish/rc.elv`:
-
 ```elvish
-eval (E:COMPLETE=elvish your_program | slurp)
+eval (E:COMPLETE=elvish rutd | slurp)
 ```
 
-### Xonsh
+## Current Status & Roadmap
 
-Install `fish` shell and follow the steps for [`fish` completion](#fish). Then, install `xonsh-fish-completer` and add the following line to your `~/.xonshrc`:
+RuTD development follows a phased approach:
 
-```xsh
-xontrib load fish_completer
-```
+- **✅ Completed Phases**: Core task management, Git integration, task state transitions, time tracking, filtering, and shell completions are all implemented and stable.
 
-## Roadmap
+- **🔄 Current Phase (In Progress)**:
+  - [x] Dynamic shell completions
+  - [ ] Time-based conflict resolution
+  - [ ] Background synchronization
+  - [ ] Custom sorting
+  - [ ] Configuration command (export default, edit, etc.)
+  - [ ] Terminal User Interface (TUI) development
+  - [ ] Windows support
+- **🔮 Future Enhancements (Planned)**:
+  - Configuration schema validation
+  - Advanced TUI editing
+  - Reporting and visualization
+  - Plugin system
+  - Alternative Git backend options
 
-Below is the development roadmap for the RuTD project, based on the planned phased feature rollout:
+## Configuration
 
-### Phase 1: MVP - Core Features and Git Integration **(Completed)**
+Tasks are stored in `~/.rutd` directory by default. Configuration options will be expanded in upcoming releases.
 
-- **Core Task Management (CLI):**
-  - Add tasks, including description, priority (Urgent, High, Normal, Low), scope (`<project-name>`), and type (`<feat|fix|docs|etc.>`).
-  - List tasks, supporting basic filtering (priority, scope, type, status).
-  - Mark tasks as completed.
-  - Edit task descriptions via `$EDITOR`.
-- **Storage:**
-  - Implement TOML-based storage, one file per task, using UUID as filename, stored in the `~/.rutd` directory.
-  - Use Serde for serialization/deserialization.
-- **Basic Git Integration:**
-  - Initialize a Git repository in `~/.rutd` if one does not exist.
-  - Automatically commit changes to task files (add, edit, complete).
-  - Generate basic commit messages (e.g., `chore(<task_id>): Update task`).
-- **Basic CLI:**
-  - Use `clap` to implement core commands (`add`, `list`, `done`, `edit`).
-  - Generate basic help information.
+## Acknowledgments
 
-### Phase 2: Enhanced Task Management and Git Workflow **(Work in Progress)**
+RuTD draws inspiration from:
+- [dstask](https://github.com/naggie/dstask) for its CLI-first approach to task management
+- [taskwarrior](https://taskwarrior.org/) for advanced task filtering concepts
 
-- **Advanced Task Management (CLI):**
-  - Implement task state transitions: `start`, `stop`, `abort`.
-  - Implement time tracking related to `start`/`stop` actions (`time_spent`), using `chrono`.
-  - Enforce "single active task" rule.
-  - Enhance `list` command: filter by completion date range, fuzzy description matching (using `fuzzy-matcher`), display statistics (count, total time spent).
-  - Implement `clean` command to delete tasks based on filters.
-- **Improved Git Integration:**
-  - Automatically generate Conventional Commit messages based on action type and task details (scope, ID), e.g., `<type>(<scope>): Mark task as done\n\n<id>`.
-  - Implement manual `sync` command (fetch/pull + push), using `git2-rs`.
-  - Basic push/pull authentication handling (default SSH key path, username/password via environment variable or prompt).
-- **CLI Enhancements:**
-  - Use `clap_complete` to implement static shell completion (e.g., priority, status).
+And the development process heavily relies on LLM tools. Huge shout out to:
+- [Roo Code](https://roocode.com/)
+- [GitHub Copilot](https://github.com/features/copilot)
+- [Claude AI](https://claude.ai/)
+- [xAI](https://x.ai/)
+- [Qwen](https://qwenlm.github.io/)
 
-### Phase 3: TUI, Background Sync, and Optimization **(Not Completed)**
+## License
 
-- **Terminal User Interface (TUI):**
-  - Develop TUI using `Ratatui` and `crossterm`.
-  - Display tasks in interactive lists/tables.
-  - Allow task selection, view details, and trigger actions via shortcuts (start/stop/finish/edit).
-  - Integrate launching `$EDITOR` for editing from TUI.
-- **Background Sync:**
-  - Use `notify` to implement file system monitoring, detecting changes in the task directory.
-  - Trigger automatic `sync` operations (commit, pull, push) on change detection, with debounce handling.
-  - Use `service-manager` for cross-platform background service management (install/start/stop).
-- **Advanced Git and Optimization:**
-  - Implement application-aware merge conflict resolution strategies (detect conflicts, deserialize versions, prompt user via CLI/TUI for field-level resolution).
-  - Implement `gc` command by invoking `git gc` (possibly using `--auto` or configurable `--prune`) for repository optimization.
-  - Enhanced authentication (SSH agent, credential helpers via `auth-git2-rs` or similar).
-- **CLI/TUI Enhancements:**
-  - Use `clap_complete` and custom completers to implement dynamic shell completion (e.g., existing scopes, types, and task IDs).
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) for details.
 
-### Future Considerations (Post-Phase 3) **(Not Completed)**
+## Contributing
 
-- **Schema Validation:** Integrate schema validation (e.g., use `schemars` for generation and Serde deserialization for runtime checks).
-- **Advanced TUI Editing:** Implement in-TUI editing features, not just relying on `$EDITOR`.
-- **Reporting and Visualization:** Add more advanced reporting features or TUI visualizations (e.g., calendar view, progress summary).
-- **Plugin System:** Explore a WASI-based plugin system for extensibility.
-- **Alternative Git Backend:** If `gitoxide` matures and its feature set (especially around native `gc`) becomes advantageous, evaluate migrating from `git2-rs` to `gitoxide`.
+Contributions are welcome! Please feel free to submit a Pull Request.
