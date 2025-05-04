@@ -57,3 +57,6 @@ simple_logger = "5.0.0"
 tempfile = "3.19.1"
 toml = "0.8.8"
 uuid = { version = "1.6.1", features = ["v4"] }
+
+[lints.clippy]
+nursery = "warn"
