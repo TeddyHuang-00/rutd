@@ -12,6 +12,7 @@ deps:
 # Check for errors
 check: format
     cargo +nightly clippy --workspace --all-targets --fix --allow-staged
+    @just format
 
 # Unit tests
 test: check
