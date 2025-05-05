@@ -19,7 +19,7 @@ check: format
 
 # Unit tests
 test: check
-    cargo test {{WORKSPACE_FLAGS}}
+    cargo test {{WORKSPACE_FLAGS}} -- --test-threads=1
 
 # Coverage report
 coverage: check
