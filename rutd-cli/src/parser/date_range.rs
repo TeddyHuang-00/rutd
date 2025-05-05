@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, Days, Local, LocalResult, Months, TimeZone, Weekday};
-use rutd_core::task::DateRange;
+use rutd_core::DateRange;
 
 // Parse date range from string for clap
 pub fn parse_date_range(range_str: &str) -> Result<DateRange, anyhow::Error> {

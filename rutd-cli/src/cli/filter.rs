@@ -1,8 +1,8 @@
 use clap::Args;
 use clap_complete::engine::ArgValueCompleter;
-use rutd_core::task::{DateRange, Filter};
+use rutd_core::task::{DateRange, Filter, Priority, TaskStatus};
 
-use super::{Priority, TaskStatus, complete, parse};
+use crate::{completer, parser};
 
 const DATE_LONG_HELP: &str = "
 Date range format: [<date>]..[<date>] or <date>
@@ -24,14 +24,17 @@ Relative format also supports:
 #[derive(Debug, Clone, Default, Args)]
 pub struct FilterOptions {
     /// Filter by priority
-    #[arg(value_enum, short, long)]
+    #[arg(
+        short, long,
+        add = ArgValueCompleter::new(completer::complete_priority)
+    )]
     pub priority: Option<Priority>,
 
     /// Filter by scope (project name)
     #[arg(
-        short = 'c', long = "scope",
+        short = 's', long = "scope",
         value_name = "SCOPE",
-        add = ArgValueCompleter::new(complete::complete_scope)
+        add = ArgValueCompleter::new(completer::complete_scope)
     )]
     pub task_scope: Option<String>,
 
@@ -39,19 +42,22 @@ pub struct FilterOptions {
     #[arg(
         short = 't', long = "type",
         value_name = "TYPE",
-        add = ArgValueCompleter::new(complete::complete_type)
+        add = ArgValueCompleter::new(completer::complete_type)
     )]
     pub task_type: Option<String>,
 
     /// Filter by status
-    #[arg(value_enum, short, long)]
+    #[arg(
+        short = 'S', long,
+        add = ArgValueCompleter::new(completer::complete_status)
+    )]
     pub status: Option<TaskStatus>,
 
     /// Filter by creation date range
     #[arg(
-        short = 'a', long = "added",
+        short = 'c', long = "created",
         value_name = "DATERANGE",
-        value_parser = parse::parse_date_range,
+        value_parser = parser::parse_date_range,
         allow_hyphen_values = true,
         long_help = DATE_LONG_HELP
     )]
@@ -61,7 +67,7 @@ pub struct FilterOptions {
     #[arg(
         short = 'u', long = "updated",
         value_name = "DATERANGE",
-        value_parser = parse::parse_date_range,
+        value_parser = parser::parse_date_range,
         allow_hyphen_values = true,
         long_help = DATE_LONG_HELP
     )]
@@ -69,9 +75,9 @@ pub struct FilterOptions {
 
     /// Filter by completion date range, including cancelled tasks
     #[arg(
-        short = 'd', long = "done",
+        short = 'C', long = "completed",
         value_name = "DATERANGE",
-        value_parser = parse::parse_date_range,
+        value_parser = parser::parse_date_range,
         allow_hyphen_values = true,
         long_help = DATE_LONG_HELP
     )]
@@ -86,10 +92,10 @@ pub struct FilterOptions {
 impl From<FilterOptions> for Filter {
     fn from(cli_filter: FilterOptions) -> Self {
         Self {
-            priority: cli_filter.priority.map(|p| p.into()),
+            priority: cli_filter.priority,
             task_scope: cli_filter.task_scope,
             task_type: cli_filter.task_type,
-            status: cli_filter.status.map(|s| s.into()),
+            status: cli_filter.status,
             creation_time: cli_filter.creation_time,
             update_time: cli_filter.update_time,
             completion_time: cli_filter.completion_time,

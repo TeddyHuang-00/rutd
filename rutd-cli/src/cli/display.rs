@@ -168,8 +168,8 @@ impl Display for DisplayManager {
 
         table.add_row(vec!["ID", &task.id]);
         table.add_row(vec!["Description", &task.description]);
-        table.add_row(vec!["Priority", &task.priority.to_string()]);
-        table.add_row(vec!["Status", &task.status.to_string()]);
+        table.add_row(vec!["Priority", task.priority.as_ref()]);
+        table.add_row(vec!["Status", task.status.as_ref()]);
 
         if let Some(scope) = &task.scope {
             table.add_row(vec!["Scope", scope]);

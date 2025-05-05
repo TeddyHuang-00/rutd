@@ -1,11 +1,13 @@
 pub mod cli;
+pub mod completer;
+pub mod parser;
 
 use std::process::ExitCode;
 
 use clap::{CommandFactory, Parser};
 use clap_complete::CompleteEnv;
 use cli::{Cli, Commands, DisplayManager};
-use rutd_core::{Config, Display, TaskManager};
+use rutd_core::{Config, Display, SortOptions, TaskManager};
 
 pub fn app() -> ExitCode {
     // Check if we're being called for completion generation
@@ -52,7 +54,6 @@ pub fn app() -> ExitCode {
             task_scope: scope,
             task_type,
         } => {
-            let priority = priority.into();
             log::trace!("Add task command");
             log::debug!("Add task: {description}");
             log::debug!("Priority: {priority}");
@@ -69,14 +70,24 @@ pub fn app() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
-        Commands::List { filter, stats } => {
+        Commands::List {
+            filter,
+            sort,
+            stats,
+        } => {
             log::trace!("List tasks");
             // Use the FilterOptions struct instead of individual parameters
 
             // Use TaskManager to list tasks
-            let Ok(tasks) = task_manager.list_tasks(&filter.into()).inspect_err(|e| {
-                display_manager.show_failure(&format!("Fail to load tasks: {e}"));
-            }) else {
+            let Ok(tasks) = task_manager
+                .list_tasks(
+                    &filter.into(),
+                    sort.or(Some(SortOptions::default())).as_ref(),
+                )
+                .inspect_err(|e| {
+                    display_manager.show_failure(&format!("Fail to load tasks: {e}"));
+                })
+            else {
                 return ExitCode::FAILURE;
             };
 
@@ -183,7 +194,6 @@ pub fn app() -> ExitCode {
             }
         }
         Commands::Sync { prefer } => {
-            let prefer = prefer.into();
             log::trace!("Sync with remote repository");
             log::debug!("Conflict resolution preference: {prefer}");
 

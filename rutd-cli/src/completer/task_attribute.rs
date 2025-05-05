@@ -1,7 +1,9 @@
 use std::{collections::HashSet, ffi::OsStr, path::Path};
 
+use clap::builder::StyledStr;
 use clap_complete::CompletionCandidate;
-use rutd_core::{Config, Task, task::storage};
+use rutd_core::{Config, Priority, Task, TaskStatus, task::storage};
+use strum::{EnumMessage, IntoEnumIterator};
 
 /// Get all tasks from the task directory with error handling
 fn get_tasks(task_dir: &Path) -> Vec<Task> {
@@ -22,15 +24,14 @@ pub fn complete_id(current: &OsStr) -> Vec<CompletionCandidate> {
     let tasks = get_tasks(&path.task_dir_path());
     tasks
         .into_iter()
-        // Get the task IDs
-        .map(|task| task.id)
         // Keep only those that start with the current prefix
-        .filter(|id| id.starts_with(current))
-        // Remove duplicates
-        .collect::<HashSet<_>>()
-        .into_iter()
+        .filter(|task| task.id.starts_with(current))
         // Convert to completion candidates
-        .map(CompletionCandidate::new)
+        .map(|task| {
+            // Take the first line of the task description as help text
+            let short_description = task.description.lines().next().map(String::from);
+            CompletionCandidate::new(task.id).help(short_description.map(StyledStr::from))
+        })
         .collect()
 }
 
@@ -77,6 +78,42 @@ pub fn complete_type(current: &OsStr) -> Vec<CompletionCandidate> {
         .into_iter()
         // Convert to completion candidates
         .map(CompletionCandidate::new)
+        .collect()
+}
+
+pub fn complete_priority(current: &OsStr) -> Vec<CompletionCandidate> {
+    let Some(current) = current.to_str() else {
+        return vec![];
+    };
+
+    // Get the priorities from enum
+    Priority::iter()
+        .flat_map(|priority| {
+            priority.get_serializations().iter().filter_map(move |p| {
+                p.starts_with(current).then_some(
+                    CompletionCandidate::new(p)
+                        .help(priority.get_documentation().map(StyledStr::from)),
+                )
+            })
+        })
+        .collect()
+}
+
+pub fn complete_status(current: &OsStr) -> Vec<CompletionCandidate> {
+    let Some(current) = current.to_str() else {
+        return vec![];
+    };
+
+    // Get the statuses from enum
+    TaskStatus::iter()
+        .flat_map(|status| {
+            status.get_serializations().iter().filter_map(move |s| {
+                s.starts_with(current).then_some(
+                    CompletionCandidate::new(s)
+                        .help(status.get_documentation().map(StyledStr::from)),
+                )
+            })
+        })
         .collect()
 }
 

@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
 use clap_complete::ArgValueCompleter;
+use rutd_core::{MergeStrategy, Priority, SortOptions};
 
-use super::{FilterOptions, MergeStrategy, Priority, complete};
+use super::FilterOptions;
+use crate::{completer, parser};
 
 /// RuTD - A Rust based To-Do list manager for your rushing to-dos
 #[derive(Parser, Debug)]
@@ -27,14 +29,18 @@ pub enum Commands {
         description: String,
 
         /// Task priority
-        #[arg(value_enum, short, long, default_value_t = Priority::Normal)]
+        #[arg(
+            short, long,
+            default_value = Priority::Normal.as_ref(),
+            add = ArgValueCompleter::new(completer::complete_priority)
+        )]
         priority: Priority,
 
         /// Task scope (project name)
         #[arg(
             short = 's', long = "scope",
             value_name = "SCOPE",
-            add = ArgValueCompleter::new(complete::complete_scope)
+            add = ArgValueCompleter::new(completer::complete_scope)
         )]
         task_scope: Option<String>,
 
@@ -42,7 +48,7 @@ pub enum Commands {
         #[arg(
             short = 't', long = "type",
             value_name = "TYPE",
-            add = ArgValueCompleter::new(complete::complete_type)
+            add = ArgValueCompleter::new(completer::complete_type)
         )]
         task_type: Option<String>,
     },
@@ -56,6 +62,15 @@ pub enum Commands {
         #[command(flatten)]
         filter: FilterOptions,
 
+        /// Sort options
+        #[arg(
+            short = 'o', long = "sort",
+            allow_hyphen_values = true,
+            value_parser = parser::parse_sort_options,
+            add = ArgValueCompleter::new(completer::complete_sort_options)
+        )]
+        sort: Option<SortOptions>,
+
         /// Show statistics (counts, total time spent)
         #[arg(long)]
         stats: bool,
@@ -66,7 +81,7 @@ pub enum Commands {
     #[command(visible_aliases = ["d", "f"])]
     Done {
         /// Task ID
-        #[arg(add = ArgValueCompleter::new(complete::complete_id))]
+        #[arg(add = ArgValueCompleter::new(completer::complete_id))]
         id: String,
     },
     /// Edit task description
@@ -76,7 +91,7 @@ pub enum Commands {
     #[command(visible_aliases = ["e"])]
     Edit {
         /// Task ID
-        #[arg(add = ArgValueCompleter::new(complete::complete_id))]
+        #[arg(add = ArgValueCompleter::new(completer::complete_id))]
         id: String,
     },
     /// Start working on a task
@@ -86,7 +101,7 @@ pub enum Commands {
     #[command(visible_aliases = ["s"])]
     Start {
         /// Task ID
-        #[arg(add = ArgValueCompleter::new(complete::complete_id))]
+        #[arg(add = ArgValueCompleter::new(completer::complete_id))]
         id: String,
     },
     /// Stop working on active task
@@ -100,7 +115,7 @@ pub enum Commands {
     #[command(visible_aliases = ["x", "c"])]
     Abort {
         /// Task ID, if not specified, abort the active task
-        #[arg(add = ArgValueCompleter::new(complete::complete_id))]
+        #[arg(add = ArgValueCompleter::new(completer::complete_id))]
         id: Option<String>,
     },
     /// Clean tasks
@@ -122,7 +137,11 @@ pub enum Commands {
     #[command(visible_aliases = ["y", "u"])]
     Sync {
         /// Conflict resolution preference when merging
-        #[arg(short, long, value_enum, default_value_t = MergeStrategy::None)]
+        #[arg(
+            short, long,
+            default_value = MergeStrategy::None.as_ref(),
+            add = ArgValueCompleter::new(completer::complete_merge_strategy)
+        )]
         prefer: MergeStrategy,
     },
     /// Clone a remote repository
@@ -156,7 +175,12 @@ mod tests {
 
         let cli = result.unwrap();
         match cli.command {
-            Commands::List { filter, stats } => {
+            Commands::List {
+                filter,
+                sort,
+                stats,
+            } => {
+                assert!(sort.is_none());
                 assert!(!stats);
                 // Default filter should be empty
                 assert!(filter.priority.is_none());
