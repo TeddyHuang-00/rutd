@@ -2,55 +2,84 @@ use std::fmt;
 
 use chrono::Local;
 use serde::{Deserialize, Serialize};
+use strum::{AsRefStr, EnumIter, EnumMessage, EnumString};
 
 // FIXME: Visible aliases for value enum is not yet supported in clap, see
 // https://github.com/clap-rs/clap/pull/5480
 /// Task Priority
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Default,
+    EnumString,
+    EnumMessage,
+    EnumIter,
+    AsRefStr,
+)]
 pub enum Priority {
     /// Low priority
+    #[strum(serialize = "l", serialize = "0", serialize = "low")]
     Low,
     /// Normal priority
     #[default]
+    #[strum(serialize = "n", serialize = "1", serialize = "normal")]
     Normal,
     /// High priority
+    #[strum(serialize = "h", serialize = "2", serialize = "high")]
     High,
     /// Most urgent
+    #[strum(serialize = "u", serialize = "3", serialize = "urgent")]
     Urgent,
 }
 
 impl fmt::Display for Priority {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Urgent => write!(f, "Urgent"),
-            Self::High => write!(f, "High"),
-            Self::Normal => write!(f, "Normal"),
-            Self::Low => write!(f, "Low"),
-        }
+        write!(f, "{}", self.as_ref())
     }
 }
 
 // FIXME: Visible aliases for value enum is not yet supported in clap, see
 // https://github.com/clap-rs/clap/pull/5480
 /// Task Status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Default,
+    EnumString,
+    EnumMessage,
+    EnumIter,
+    AsRefStr,
+)]
 pub enum TaskStatus {
     /// Cancelled
+    #[strum(serialize = "a", serialize = "aborted")]
     Aborted,
+    /// Finished
+    #[strum(serialize = "d", serialize = "done")]
+    Done,
     /// Pending
     #[default]
+    #[strum(serialize = "t", serialize = "todo")]
     Todo,
-    /// Finished
-    Done,
 }
 
 impl fmt::Display for TaskStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Todo => write!(f, "Todo"),
-            Self::Done => write!(f, "Done"),
-            Self::Aborted => write!(f, "Aborted"),
-        }
+        write!(f, "{}", self.as_ref())
     }
 }
 
@@ -140,17 +169,17 @@ mod tests {
 
     #[test]
     fn test_priority_display() {
-        assert_eq!(Priority::Urgent.to_string(), "Urgent");
-        assert_eq!(Priority::High.to_string(), "High");
-        assert_eq!(Priority::Normal.to_string(), "Normal");
-        assert_eq!(Priority::Low.to_string(), "Low");
+        assert_eq!(Priority::Urgent.to_string(), "urgent");
+        assert_eq!(Priority::High.to_string(), "high");
+        assert_eq!(Priority::Normal.to_string(), "normal");
+        assert_eq!(Priority::Low.to_string(), "low");
     }
 
     #[test]
     fn test_status_display() {
-        assert_eq!(TaskStatus::Todo.to_string(), "Todo");
-        assert_eq!(TaskStatus::Done.to_string(), "Done");
-        assert_eq!(TaskStatus::Aborted.to_string(), "Aborted");
+        assert_eq!(TaskStatus::Todo.to_string(), "todo");
+        assert_eq!(TaskStatus::Done.to_string(), "done");
+        assert_eq!(TaskStatus::Aborted.to_string(), "aborted");
     }
 
     #[test]

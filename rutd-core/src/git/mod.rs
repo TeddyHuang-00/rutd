@@ -2,13 +2,26 @@ pub mod repo;
 
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use strum::{AsRefStr, EnumIter, EnumMessage, EnumString};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumMessage, EnumIter, AsRefStr)]
 pub enum MergeStrategy {
     /// Do not automatically merge
+    #[strum(
+        serialize = "n",
+        serialize = "none",
+        message = "Do not automatically merge"
+    )]
     None,
     /// Prefer local version
+    #[strum(serialize = "l", serialize = "local", message = "Prefer local version")]
     Local,
     /// Prefer remote version
+    #[strum(
+        serialize = "r",
+        serialize = "remote",
+        message = "Prefer remote version"
+    )]
     Remote,
 }
 
