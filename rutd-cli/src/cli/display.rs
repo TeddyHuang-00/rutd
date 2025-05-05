@@ -110,7 +110,11 @@ impl Display for DisplayManager {
             row.add_cell(Cell::new(time_spent).set_alignment(CellAlignment::Right));
 
             // Completed at
-            row.add_cell(Cell::new(task.completed_at.as_deref().unwrap_or("-")));
+            let complete_at = task.completed_at.as_ref().map_or("-".to_string(), |t| {
+                let date = t.parse::<chrono::DateTime<chrono::Utc>>().unwrap();
+                date.format("%Y-%m-%d %H:%M:%S").to_string()
+            });
+            row.add_cell(Cell::new(complete_at));
 
             table.add_row(row);
         }
