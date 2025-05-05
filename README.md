@@ -10,6 +10,8 @@ RuTD ("Rust To Do" or "Rush To Do") is a high-performance todo list manager buil
 
 **Status**: RuTD is stable and feature-rich with core and advanced functionality complete. New features are being actively developed.
 
+![Demo](https://raw.githubusercontent.com/TeddyHuang-00/rutd/main/assets/gif/start-stop.gif)
+
 ## Key Features
 
 - **Fast & Lightweight**: Written in Rust for excellent performance and minimal resource usage
@@ -43,6 +45,8 @@ cargo install rutd-cli
 
 ## Quick Start
 
+Here are some quick commands to get you started with RuTD:
+
 ```bash
 # Add a new task
 rutd-cli add "Implement new feature" --priority high --scope backend --type feat
@@ -59,6 +63,8 @@ rutd-cli done task-id
 # Edit a task
 rutd-cli edit task-id
 ```
+
+See the [Usage](https://github.com/TeddyHuang-00/rutd/blob/main/USAGE.md) for more detailed commands and options.
 
 ## Shell Completion
 
@@ -156,7 +162,7 @@ And the development process heavily relies on LLM tools. Huge shout out to:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/TeddyHuang-00/rutd/blob/main/LICENSE) for details.
 
 ## Contributing
 
