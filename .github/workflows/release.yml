@@ -29,6 +29,12 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos-13
             feature: default
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            feature: default
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+            feature: default
 
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +66,16 @@ jobs:
           cp target/${{ matrix.target }}/release/rutd-* $directory
           tar cJf $directory.tar.xz $directory
           python3 -c "import hashlib; open('$directory.tar.xz.sha256', 'w').write(hashlib.file_digest(open('$directory.tar.xz', 'rb'), 'sha256').hexdigest())"
+
+          if [ -f target/${{ matrix.target }}/release/rutd-cli.exe ]; then
+            cp target/${{ matrix.target }}/release/rutd-*.exe $directory
+            7z a -r $directory.zip $directory
+            python3 -c "import hashlib; open('$directory.zip.sha256', 'w').write(hashlib.file_digest(open('$directory.zip', 'rb'), 'sha256').hexdigest())"
+          else
+            cp target/${{ matrix.target }}/release/rutd-* $directory
+            tar cJf $directory.tar.xz $directory
+            python3 -c "import hashlib; open('$directory.tar.xz.sha256', 'w').write(hashlib.file_digest(open('$directory.tar.xz', 'rb'), 'sha256').hexdigest())"
+          fi
 
       - name: Upload Release
         uses: ncipollo/release-action@v1.16.0
