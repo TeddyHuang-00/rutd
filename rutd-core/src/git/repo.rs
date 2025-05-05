@@ -1,4 +1,4 @@
-use std::{env, ffi::OsStr, os::unix::ffi::OsStrExt, path::Path};
+use std::{env, path::Path};
 
 use anyhow::{Context, Result};
 use git2::{
@@ -328,14 +328,20 @@ impl GitRepo {
             match prefer {
                 MergeStrategy::Local => {
                     if let Some(ours) = conflict.our {
-                        index.conflict_remove(Path::new(&OsStr::from_bytes(&ours.path)))?;
-                        index.add_path(Path::new(&OsStr::from_bytes(&ours.path)))?;
+                        let path_str =
+                            String::from_utf8(ours.path).context("Invalid UTF-8 in path")?;
+                        let path = Path::new(&path_str);
+                        index.conflict_remove(path)?;
+                        index.add_path(path)?;
                     }
                 }
                 MergeStrategy::Remote => {
                     if let Some(theirs) = conflict.their {
-                        index.conflict_remove(Path::new(&OsStr::from_bytes(&theirs.path)))?;
-                        index.add_path(Path::new(&OsStr::from_bytes(&theirs.path)))?;
+                        let path_str =
+                            String::from_utf8(theirs.path).context("Invalid UTF-8 in path")?;
+                        let path = Path::new(&path_str);
+                        index.conflict_remove(path)?;
+                        index.add_path(path)?;
                     }
                 }
                 MergeStrategy::None => {
