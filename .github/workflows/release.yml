@@ -43,7 +43,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools pkg-config libssl-dev
-          # echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          # echo "OPENSSL_DIR=/usr" >> $GITHUB_OUTPUT
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -93,25 +93,31 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Determine if is pre-release
-        id: is-prerelease
+      - name: Determine version info
+        id: vInfo
         run: |
           CURRENT_TAG=${GITHUB_REF#refs/tags/}
           # Remove the 'v' prefix if present
           VERSION=${CURRENT_TAG#v}
+          echo "Current tag: $CURRENT_TAG"
+          echo "Version: $VERSION"
+          echo "Seeing tags:"
+          echo $(git --no-pager tag --sort=-v:refname)
+          echo "matching tags:"
+          echo $(git --no-pager tag --sort=-v:refname | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$")
           # Check if version has pre-release suffix (contains '-')
           if [[ "$VERSION" == *"-"* ]]; then
             echo "Pre-release version detected: $VERSION"
+            echo "preRelease=true" >> $GITHUB_OUTPUT
             PREV_TAG=$(git --no-pager tag --sort=-v:refname | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+-" | grep -v "$CURRENT_TAG" | head -n 1 || echo "")
             echo "Found previous pre-release tag: $PREV_TAG"
-            echo "prerelease=true" >> $GITHUB_OUTPUT
-            echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+            echo "previousTag=$PREV_TAG" >> $GITHUB_OUTPUT
           else
             echo "Stable version detected: $VERSION"
+            echo "preRelease=false" >> $GITHUB_OUTPUT
             PREV_TAG=$(git --no-pager tag --sort=-v:refname | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | grep -v "$CURRENT_TAG" | head -n 1 || echo "")
             echo "Found previous stable tag: $PREV_TAG"
-            echo "prerelease=false" >> $GITHUB_OUTPUT
-            echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+            echo "previousTag=$PREV_TAG" >> $GITHUB_OUTPUT
           fi
 
       - name: Update CHANGELOG
@@ -120,7 +126,7 @@ jobs:
         with:
           token: ${{ github.token }}
           fromTag: ${{ github.ref_name }}
-          toTag: ${{ steps.is-prerelease.outputs.previous_tag }}
+          toTag: ${{ steps.vInfo.outputs.previousTag }}
           writeToFile: false
 
       - name: Update Release
@@ -128,4 +134,4 @@ jobs:
         with:
           allowUpdates: true
           body: ${{ steps.changelog.outputs.changes }}
-          prerelease: ${{ steps.is-prerelease.outputs.prerelease == 'true' }}
+          prerelease: ${{ steps.vInfo.outputs.prerelease == 'true' }}
