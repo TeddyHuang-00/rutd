@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 const DEFAULT_SCOPES: [&str; 1] = ["other"];
 const DEFAULT_TYPES: [&str; 10] = [
-    "feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"
+    "feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test",
 ];
 
 /// Task configuration
