@@ -87,6 +87,34 @@ mod tests {
 
     use super::*;
 
+    // Helper to manage environment variables for testing
+    struct EnvVarGuard {
+        vars: Vec<String>,
+    }
+
+    impl EnvVarGuard {
+        fn new() -> Self {
+            Self { vars: Vec::new() }
+        }
+
+        fn set(&mut self, key: &str, value: &str) {
+            unsafe {
+                env::set_var(key, value);
+            }
+            self.vars.push(key.to_string());
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            unsafe {
+                for key in &self.vars {
+                    env::remove_var(key);
+                }
+            }
+        }
+    }
+
     #[test]
     fn test_default_config() {
         let config = Config::default();
@@ -121,8 +149,6 @@ mod tests {
         assert_eq!(deserialized.task, config.task);
     }
 
-    // Testing Config::new() is more challenging as it depends on the environment
-    // and file system, but we can test some basic aspects
     #[test]
     fn test_package_name_extraction() {
         // This test verifies that the package name extraction logic works
@@ -144,10 +170,9 @@ mod tests {
     fn test_config_file_loading() {
         // Create a temporary directory for our config file
         let temp_dir = tempdir().unwrap();
-
         let config_path = temp_dir.path().join("config.toml");
 
-        // Create a custom config file without leading whitespace
+        // Create a custom config file
         let config_content = r#"
         [path]
         root_dir = "/test/custom/root"
@@ -167,27 +192,14 @@ mod tests {
 
         fs::write(&config_path, config_content).unwrap();
 
-        println!("Config file path: {}", config_path.display());
-        println!("Config file exists: {}", config_path.exists());
-        println!(
-            "Config file content: {}",
-            fs::read_to_string(&config_path).unwrap()
-        );
-
+        // Load the config with a specific test prefix to avoid interference
         let config = Config::load(
             config_path.to_str().unwrap(),
-            // Set the weird prefix to avoid conflicts
             "RUTD_TEST_CONFIG_FILE_LOADING_",
         );
 
-        if let Err(ref e) = config {
-            println!("Failed to load config: {e}");
-        }
-
         assert!(config.is_ok());
         let config = config.unwrap();
-
-        println!("{config:?}");
 
         let path = PathConfig {
             root_dir: PathBuf::from("/test/custom/root"),
@@ -211,57 +223,37 @@ mod tests {
 
     #[test]
     fn test_env_var_config_loading() {
-        // Save original environment variables if they exist
-        let original_vars = vec![
-            (
-                "RUTD_TEST_ENV_CAR_CONFIG_LOADING_PATH__ROOT_DIR",
-                "/env/test/root",
-            ),
-            (
-                "RUTD_TEST_ENV_CAR_CONFIG_LOADING_PATH__TASKS_DIR",
-                "env-test-tasks",
-            ),
-            (
-                "RUTD_TEST_ENV_CAR_CONFIG_LOADING_GIT__USERNAME",
-                "env-test-user",
-            ),
-            ("RUTD_TEST_ENV_CAR_CONFIG_LOADING_LOG__HISTORY", "0"),
-            (
-                "RUTD_TEST_ENV_CAR_CONFIG_LOADING_TASK__SCOPES",
-                "[env-scope-1, env-scope-2]",
-            ),
-        ];
+        let mut guard = EnvVarGuard::new();
 
-        unsafe {
-            // Set test environment variables
-            for &(var, new) in original_vars.iter() {
-                env::set_var(var, new);
-            }
+        // Set test environment variables
+        guard.set("RUTD_TEST_ENV_CONFIG_PATH__ROOT_DIR", "/env/test/root");
+        guard.set("RUTD_TEST_ENV_CONFIG_PATH__TASKS_DIR", "env-test-tasks");
+        guard.set("RUTD_TEST_ENV_CONFIG_GIT__USERNAME", "env-test-user");
+        guard.set("RUTD_TEST_ENV_CONFIG_LOG__HISTORY", "0");
+        guard.set(
+            "RUTD_TEST_ENV_CONFIG_TASK__SCOPES",
+            "[env-scope-1, env-scope-2]",
+        );
 
-            let config = Config::load("does-not-exist.toml", "RUTD_TEST_ENV_CAR_CONFIG_LOADING_");
-            assert!(config.is_ok());
+        // Load config (with a non-existent file path to test env-only configuration)
+        let config = Config::load("does-not-exist.toml", "RUTD_TEST_ENV_CONFIG_");
+        assert!(config.is_ok());
 
-            let config = config.unwrap();
+        let config = config.unwrap();
 
-            // Check that values from environment variables are loaded
-            assert_eq!(
-                config.path.task_dir_path().to_str().unwrap(),
-                "/env/test/root/env-test-tasks"
-            );
-            assert_eq!(config.git.username, "env-test-user");
-            assert_eq!(config.git.password, "");
-            assert_eq!(config.log.history, 0);
-            assert!(!config.log.console);
-            assert_eq!(
-                config.task.scopes,
-                vec!["env-scope-1".to_string(), "env-scope-2".to_string()]
-            );
-
-            // Restore original environment variables
-            for (var, _) in original_vars {
-                env::remove_var(var)
-            }
-        }
+        // Check that values from environment variables are loaded
+        assert_eq!(
+            config.path.task_dir_path().to_str().unwrap(),
+            "/env/test/root/env-test-tasks"
+        );
+        assert_eq!(config.git.username, "env-test-user");
+        assert_eq!(config.git.password, "");
+        assert_eq!(config.log.history, 0);
+        assert!(!config.log.console);
+        assert_eq!(
+            config.task.scopes,
+            vec!["env-scope-1".to_string(), "env-scope-2".to_string()]
+        );
     }
 
     #[test]
@@ -279,30 +271,57 @@ mod tests {
 
         fs::write(&config_path, config_content).unwrap();
 
-        unsafe {
-            // Set conflicting environment variable which should take precedence
-            env::set_var("RUTD_TEST_CONFIG_PRECEDENCE_GIT__USERNAME", "env-user");
+        let mut guard = EnvVarGuard::new();
 
-            // Load the config with the environment variable prefix
-            let config = Config::load(
-                config_path.to_str().unwrap(),
-                "RUTD_TEST_CONFIG_PRECEDENCE_",
-            );
+        // Set conflicting environment variable which should take precedence
+        guard.set("RUTD_TEST_CONFIG_PRECEDENCE_GIT__USERNAME", "env-user");
 
-            assert!(config.is_ok());
+        // Load the config with the environment variable prefix
+        let config = Config::load(
+            config_path.to_str().unwrap(),
+            "RUTD_TEST_CONFIG_PRECEDENCE_",
+        );
 
-            let config = config
-                .inspect_err(|e| eprintln!("Failed to load config: {e}"))
-                .unwrap();
+        assert!(config.is_ok());
+        let config = config.unwrap();
 
-            // Check that environment variable takes precedence over file
-            assert_eq!(config.git.username, "env-user");
-            // But password from file should still be there
-            assert_eq!(config.git.password, "file-password");
+        // Check that environment variable takes precedence over file
+        assert_eq!(config.git.username, "env-user");
+        // But password from file should still be there
+        assert_eq!(config.git.password, "file-password");
+    }
 
-            // Restore original environment variables
-            env::remove_var("RUTD_TEST_CONFIG_PRECEDENCE_GIT__USERNAME");
-        }
+    #[test]
+    fn test_config_new_with_env_vars() {
+        // This test directly tests the Config::new() function instead of Config::load()
+        let mut guard = EnvVarGuard::new();
+
+        // Set environment variables that should be picked up by Config::new()
+        guard.set("RUTD_PATH__ROOT_DIR", "/env/new/root");
+        guard.set("RUTD_GIT__USERNAME", "git-username-test");
+        guard.set("RUTD_LOG__CONSOLE", "true");
+
+        // Call Config::new() which should pick up our environment variables
+        let config = Config::new();
+        assert!(config.is_ok());
+        let config = config.unwrap();
+
+        // Verify the environment variables were loaded correctly
+        assert_eq!(config.path.root_dir, PathBuf::from("/env/new/root"));
+        assert_eq!(config.git.username, "git-username-test");
+        assert!(config.log.console);
+    }
+
+    #[test]
+    fn test_config_with_invalid_env_vars() {
+        let mut guard = EnvVarGuard::new();
+
+        // Set an invalid boolean value
+        guard.set("RUTD_TEST_INVALID_LOG__CONSOLE", "not-a-bool");
+
+        // Loading should fail
+        let config = Config::load("does-not-exist.toml", "RUTD_TEST_INVALID_");
+        assert!(config.is_err());
     }
 
     #[test]

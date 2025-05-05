@@ -214,54 +214,69 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_sort_by_priority() {
-        let mut tasks = vec![
+    // Generate a standard set of diverse test tasks for all tests
+    fn create_test_tasks() -> Vec<Task> {
+        // Create a diverse set of tasks with identifiable values for all attributes
+        vec![
+            // Task 1: Normal priority, project-b, feature, Todo, medium creation time, medium
+            // update, no completion, medium time
             create_test_task(EasyTask(
                 "1",
                 Priority::Normal,
-                None,
-                None,
+                Some("project-b"),
+                Some("feature"),
                 TaskStatus::Todo,
-                "2023-01-01T12:00:00+00:00",
+                "2023-02-15T12:00:00+00:00",
+                Some("2023-02-20T12:00:00+00:00"),
                 None,
-                None,
-                None,
+                Some(60),
             )),
+            // Task 2: High priority, project-a, bug, Todo, oldest creation time, oldest update, no
+            // completion, low time
             create_test_task(EasyTask(
                 "2",
                 Priority::High,
-                None,
-                None,
+                Some("project-a"),
+                Some("bug"),
                 TaskStatus::Todo,
-                "2023-01-01T12:00:00+00:00",
+                "2023-01-10T12:00:00+00:00",
+                Some("2023-01-15T12:00:00+00:00"),
                 None,
-                None,
-                None,
+                Some(30),
             )),
+            // Task 3: Urgent priority, no scope, no type, Aborted, newest creation time, no
+            // update, oldest completion, no time
             create_test_task(EasyTask(
                 "3",
                 Priority::Urgent,
                 None,
                 None,
-                TaskStatus::Todo,
-                "2023-01-01T12:00:00+00:00",
+                TaskStatus::Aborted,
+                "2023-03-25T12:00:00+00:00",
                 None,
-                None,
+                Some("2023-04-01T12:00:00+00:00"),
                 None,
             )),
+            // Task 4: Low priority, project-c, document, Done, second newest creation, newest
+            // update, newest completion, highest time
             create_test_task(EasyTask(
                 "4",
                 Priority::Low,
-                None,
-                None,
-                TaskStatus::Todo,
-                "2023-01-01T12:00:00+00:00",
-                None,
-                None,
-                None,
+                Some("project-c"),
+                Some("document"),
+                TaskStatus::Done,
+                "2023-03-10T12:00:00+00:00",
+                Some("2023-03-30T12:00:00+00:00"),
+                Some("2023-04-05T12:00:00+00:00"),
+                Some(120),
             )),
-        ];
+        ]
+    }
+
+    #[test]
+    fn test_sort_by_priority() {
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
 
         // Create sort options for priority descending (Urgent first)
         let mut options = SortOptions::new();
@@ -271,7 +286,6 @@ mod tests {
         sort_tasks(&mut tasks, &options);
 
         // Verify the order: Urgent (3) -> High (2) -> Normal (1) -> Low (4)
-        // Urgent is lowest value (0) in our enum, so it comes first with ascending sort
         assert_eq!(tasks[0].id, "3");
         assert_eq!(tasks[1].id, "2");
         assert_eq!(tasks[2].id, "1");
@@ -291,52 +305,8 @@ mod tests {
 
     #[test]
     fn test_sort_by_scope() {
-        let mut tasks = vec![
-            create_test_task(EasyTask(
-                "1",
-                Priority::Normal,
-                Some("project-b"),
-                None,
-                TaskStatus::Todo,
-                "2023-01-01T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-            create_test_task(EasyTask(
-                "2",
-                Priority::Normal,
-                Some("project-a"),
-                None,
-                TaskStatus::Todo,
-                "2023-01-01T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-            create_test_task(EasyTask(
-                "3",
-                Priority::Normal,
-                None,
-                None,
-                TaskStatus::Todo,
-                "2023-01-01T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-            create_test_task(EasyTask(
-                "4",
-                Priority::Normal,
-                Some("project-c"),
-                None,
-                TaskStatus::Todo,
-                "2023-01-01T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-        ];
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
 
         // Create sort options for scope ascending (alphabetical)
         let mut options = SortOptions::new();
@@ -346,7 +316,6 @@ mod tests {
         sort_tasks(&mut tasks, &options);
 
         // Verify the order: project-a (2) -> project-b (1) -> project-c (4) -> None (3)
-        // Scopes with values come before None values when sorting ascending
         assert_eq!(tasks[0].id, "2");
         assert_eq!(tasks[1].id, "1");
         assert_eq!(tasks[2].id, "4");
@@ -366,41 +335,8 @@ mod tests {
 
     #[test]
     fn test_sort_by_creation_time() {
-        let mut tasks = vec![
-            create_test_task(EasyTask(
-                "1",
-                Priority::Normal,
-                None,
-                None,
-                TaskStatus::Todo,
-                "2023-02-01T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-            create_test_task(EasyTask(
-                "2",
-                Priority::Normal,
-                None,
-                None,
-                TaskStatus::Todo,
-                "2023-01-01T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-            create_test_task(EasyTask(
-                "3",
-                Priority::Normal,
-                None,
-                None,
-                TaskStatus::Todo,
-                "2023-03-01T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-        ];
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
 
         // Create sort options for creation time ascending (oldest first)
         let mut options = SortOptions::new();
@@ -409,90 +345,66 @@ mod tests {
         // Sort the tasks
         sort_tasks(&mut tasks, &options);
 
-        // Verify the order: Jan (2) -> Feb (1) -> Mar (3)
+        // Verify the order: Jan (2) -> Feb (1) -> March (4) -> Late March (3)
         assert_eq!(tasks[0].id, "2");
         assert_eq!(tasks[1].id, "1");
-        assert_eq!(tasks[2].id, "3");
+        assert_eq!(tasks[2].id, "4");
+        assert_eq!(tasks[3].id, "3");
 
         // Test descending order (newest first)
         let mut options = SortOptions::new();
         options.add_criterion(SortCriteria::CreationTime, SortOrder::Descending);
         sort_tasks(&mut tasks, &options);
 
-        // Verify the order: Mar (3) -> Feb (1) -> Jan (2)
+        // Verify the order: Late March (3) -> March (4) -> Feb (1) -> Jan (2)
         assert_eq!(tasks[0].id, "3");
-        assert_eq!(tasks[1].id, "1");
-        assert_eq!(tasks[2].id, "2");
+        assert_eq!(tasks[1].id, "4");
+        assert_eq!(tasks[2].id, "1");
+        assert_eq!(tasks[3].id, "2");
     }
 
     #[test]
     fn test_multi_criteria_sort() {
-        let mut tasks = vec![
-            create_test_task(EasyTask(
-                "1",
-                Priority::High,
-                Some("project-a"),
-                None,
-                TaskStatus::Todo,
-                "2023-01-15T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-            create_test_task(EasyTask(
-                "2",
-                Priority::High,
-                Some("project-a"),
-                None,
-                TaskStatus::Todo,
-                "2023-01-10T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-            create_test_task(EasyTask(
-                "3",
-                Priority::Urgent,
-                Some("project-b"),
-                None,
-                TaskStatus::Todo,
-                "2023-01-05T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-            create_test_task(EasyTask(
-                "4",
-                Priority::Urgent,
-                Some("project-a"),
-                None,
-                TaskStatus::Todo,
-                "2023-01-20T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-        ];
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
 
-        // Sort by priority (desc), then scope (asc), then creation time (desc)
+        // Sort by priority (desc), then scope (asc)
         let mut options = SortOptions::new();
         options
             .add_criterion(SortCriteria::Priority, SortOrder::Descending)
-            .add_criterion(SortCriteria::Scope, SortOrder::Ascending)
-            .add_criterion(SortCriteria::CreationTime, SortOrder::Descending);
+            .add_criterion(SortCriteria::Scope, SortOrder::Ascending);
 
         // Sort the tasks
         sort_tasks(&mut tasks, &options);
 
         // Expected order:
-        // 1. Urgent, project-a (4)
-        // 2. Urgent, project-b (3)
-        // 3. High, project-a, newer (1)
-        // 4. High, project-a, older (2)
-        assert_eq!(tasks[0].id, "4");
-        assert_eq!(tasks[1].id, "3");
+        // 1. Urgent, no scope (3)
+        // 2. High, project-a (2)
+        // 3. Normal, project-b (1)
+        // 4. Low, project-c (4)
+        assert_eq!(tasks[0].id, "3");
+        assert_eq!(tasks[1].id, "2");
         assert_eq!(tasks[2].id, "1");
-        assert_eq!(tasks[3].id, "2");
+        assert_eq!(tasks[3].id, "4");
+
+        // Sort by status (desc), then priority (desc)
+        let mut options = SortOptions::new();
+        options
+            .add_criterion(SortCriteria::Status, SortOrder::Descending)
+            .add_criterion(SortCriteria::Priority, SortOrder::Descending);
+
+        // Sort the tasks
+        sort_tasks(&mut tasks, &options);
+
+        // Expected order:
+        // 1. Todo, High (2)
+        // 2. Todo, Normal (1)
+        // 3. Done, Low (4)
+        // 4. Aborted, Urgent (3)
+        assert_eq!(tasks[0].id, "2");
+        assert_eq!(tasks[1].id, "1");
+        assert_eq!(tasks[2].id, "4");
+        assert_eq!(tasks[3].id, "3");
     }
 
     #[test]
@@ -513,30 +425,8 @@ mod tests {
 
     #[test]
     fn test_default_sort_options_uses_default() {
-        let mut tasks = vec![
-            create_test_task(EasyTask(
-                "1",
-                Priority::Normal,
-                Some("project-b"),
-                None,
-                TaskStatus::Todo,
-                "2023-01-15T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-            create_test_task(EasyTask(
-                "2",
-                Priority::Urgent,
-                Some("project-a"),
-                None,
-                TaskStatus::Todo,
-                "2023-01-10T12:00:00+00:00",
-                None,
-                None,
-                None,
-            )),
-        ];
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
 
         // Create empty sort options
         let options = SortOptions::default();
@@ -544,9 +434,213 @@ mod tests {
         // Sort the tasks
         sort_tasks(&mut tasks, &options);
 
-        // Verify that default sorting was used:
-        // Priority first (Urgent before Normal), then Scope
-        assert_eq!(tasks[0].id, "2"); // Urgent, project-a
-        assert_eq!(tasks[1].id, "1"); // Normal, project-b
+        // With default sort (Status desc, Priority desc, Scope asc, CreationTime desc):
+        // 1. Todo, High, project-a (2)
+        // 2. Todo, Normal, project-b (1)
+        // 3. Done, Low, project-c (4)
+        // 4. Aborted, Urgent, no scope (3)
+        assert_eq!(tasks[0].id, "2");
+        assert_eq!(tasks[1].id, "1");
+        assert_eq!(tasks[2].id, "4");
+        assert_eq!(tasks[3].id, "3");
+    }
+
+    #[test]
+    fn test_sort_by_type() {
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
+
+        // Create sort options for type ascending (alphabetical)
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::Type, SortOrder::Ascending);
+
+        // Sort the tasks
+        sort_tasks(&mut tasks, &options);
+
+        // Verify the order: bug (2) -> document (4) -> feature (1) -> None (3)
+        assert_eq!(tasks[0].id, "2");
+        assert_eq!(tasks[1].id, "4");
+        assert_eq!(tasks[2].id, "1");
+        assert_eq!(tasks[3].id, "3");
+
+        // Test descending order
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::Type, SortOrder::Descending);
+        sort_tasks(&mut tasks, &options);
+
+        // Verify the order: None (3) -> feature (1) -> document (4) -> bug (2)
+        assert_eq!(tasks[0].id, "3");
+        assert_eq!(tasks[1].id, "1");
+        assert_eq!(tasks[2].id, "4");
+        assert_eq!(tasks[3].id, "2");
+    }
+
+    #[test]
+    fn test_sort_by_status() {
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
+
+        // Create sort options for status descending (Todo -> Done -> Aborted)
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::Status, SortOrder::Descending);
+
+        // Sort the tasks
+        sort_tasks(&mut tasks, &options);
+
+        // Verify the order: Todo (1, 2) -> Done (4) -> Aborted (3)
+        // For equal status, original order is preserved (1 before 2)
+        assert_eq!(tasks[0].id, "1");
+        assert_eq!(tasks[1].id, "2");
+        assert_eq!(tasks[2].id, "4");
+        assert_eq!(tasks[3].id, "3");
+
+        // Test ascending order
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::Status, SortOrder::Ascending);
+        sort_tasks(&mut tasks, &options);
+
+        // Verify the order: Aborted (3) -> Done (4) -> Todo (1, 2)
+        assert_eq!(tasks[0].id, "3");
+        assert_eq!(tasks[1].id, "4");
+        assert_eq!(tasks[2].id, "1");
+        assert_eq!(tasks[3].id, "2");
+    }
+
+    #[test]
+    fn test_sort_by_update_time() {
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
+
+        // Create sort options for update time ascending (oldest first)
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::UpdateTime, SortOrder::Ascending);
+
+        // Sort the tasks
+        sort_tasks(&mut tasks, &options);
+
+        // Verify the order: Jan (2) -> Feb (1) -> Mar (4) -> None (3)
+        assert_eq!(tasks[0].id, "2");
+        assert_eq!(tasks[1].id, "1");
+        assert_eq!(tasks[2].id, "4");
+        assert_eq!(tasks[3].id, "3");
+
+        // Test descending order (newest first)
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::UpdateTime, SortOrder::Descending);
+        sort_tasks(&mut tasks, &options);
+
+        // Verify the order: None (3) -> Mar (4) -> Feb (1) -> Jan (2)
+        assert_eq!(tasks[0].id, "3");
+        assert_eq!(tasks[1].id, "4");
+        assert_eq!(tasks[2].id, "1");
+        assert_eq!(tasks[3].id, "2");
+    }
+
+    #[test]
+    fn test_sort_by_completion_time() {
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
+
+        // Create sort options for completion time ascending (oldest first)
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::CompletionTime, SortOrder::Ascending);
+
+        // Sort the tasks
+        sort_tasks(&mut tasks, &options);
+
+        // Verify the order: April 1 (3) -> April 5 (4) -> No completion (1, 2)
+        assert_eq!(tasks[0].id, "3");
+        assert_eq!(tasks[1].id, "4");
+        assert_eq!(tasks[2].id, "1");
+        assert_eq!(tasks[3].id, "2");
+
+        // Test descending order (newest first)
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::CompletionTime, SortOrder::Descending);
+        sort_tasks(&mut tasks, &options);
+
+        // Verify the order: No completion (1, 2) -> April 5 (4) -> April 1 (3)
+        assert_eq!(tasks[0].id, "1");
+        assert_eq!(tasks[1].id, "2");
+        assert_eq!(tasks[2].id, "4");
+        assert_eq!(tasks[3].id, "3");
+    }
+
+    #[test]
+    fn test_sort_by_time_spent() {
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
+
+        // Create sort options for time spent ascending (shortest first)
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::TimeSpent, SortOrder::Ascending);
+
+        // Sort the tasks
+        sort_tasks(&mut tasks, &options);
+
+        // Verify the order: 30 seconds (2) -> 60 seconds (1) -> 120 seconds (4) -> None
+        // (3)
+        assert_eq!(tasks[0].id, "2");
+        assert_eq!(tasks[1].id, "1");
+        assert_eq!(tasks[2].id, "4");
+        assert_eq!(tasks[3].id, "3");
+
+        // Test descending order (longest first)
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::TimeSpent, SortOrder::Descending);
+        sort_tasks(&mut tasks, &options);
+
+        // Verify the order: None (3) -> 120 seconds (4) -> 60 seconds (1) -> 30 seconds
+        // (2)
+        assert_eq!(tasks[0].id, "3");
+        assert_eq!(tasks[1].id, "4");
+        assert_eq!(tasks[2].id, "1");
+        assert_eq!(tasks[3].id, "2");
+    }
+
+    #[test]
+    fn test_empty_sort_options() {
+        // Use the shared test task set
+        let mut tasks = create_test_tasks();
+
+        // Create empty sort options
+        let options = SortOptions::new();
+        assert!(options.is_empty());
+
+        // Make a copy of the original order
+        let original_order = tasks.iter().map(|t| t.id.clone()).collect::<Vec<_>>();
+
+        // Sort the tasks
+        sort_tasks(&mut tasks, &options);
+
+        // Verify that order was not changed
+        let sorted_order = tasks.iter().map(|t| t.id.clone()).collect::<Vec<_>>();
+        assert_eq!(original_order, sorted_order);
+
+        // Confirm the original order is maintained
+        assert_eq!(original_order, vec!["1", "2", "3", "4"]);
+    }
+
+    #[test]
+    fn test_sort_options_methods() {
+        // Test empty sort options
+        let options = SortOptions::new();
+        assert!(options.is_empty());
+        assert!(options.criteria().is_empty());
+
+        // Test adding criteria
+        let mut options = SortOptions::new();
+        options.add_criterion(SortCriteria::Priority, SortOrder::Descending);
+        assert!(!options.is_empty());
+        assert_eq!(options.criteria().len(), 1);
+        assert_eq!(options.criteria()[0].0, SortCriteria::Priority);
+        assert_eq!(options.criteria()[0].1, SortOrder::Descending);
+
+        // Test method chaining
+        let mut options = SortOptions::new();
+        options
+            .add_criterion(SortCriteria::Priority, SortOrder::Descending)
+            .add_criterion(SortCriteria::Scope, SortOrder::Ascending);
+        assert_eq!(options.criteria().len(), 2);
     }
 }
