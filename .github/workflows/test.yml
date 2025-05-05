@@ -68,8 +68,12 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos-13
             feature: default
-        #   - target: x86_64-pc-windows-msvc
-        #     os: windows-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            feature: default
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+            feature: default
 
     steps:
       - uses: actions/checkout@v4
