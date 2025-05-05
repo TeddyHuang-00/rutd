@@ -4,11 +4,11 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MergeStrategy {
-    /// Do not automatically merge (alias: n)
+    /// Do not automatically merge
     None,
-    /// Prefer local version (alias: l)
+    /// Prefer local version
     Local,
-    /// Prefer remote version (alias: r)
+    /// Prefer remote version
     Remote,
 }
 

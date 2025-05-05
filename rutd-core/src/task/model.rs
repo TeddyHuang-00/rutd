@@ -8,15 +8,15 @@ use serde::{Deserialize, Serialize};
 /// Task Priority
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Priority {
-    /// Most urgent (alias: u, 0)
-    Urgent,
-    /// High priority (alias: h, 1)
-    High,
-    /// Normal priority (alias: n, 2)
+    /// Low priority
+    Low,
+    /// Normal priority
     #[default]
     Normal,
-    /// Low priority (alias: l, 3)
-    Low,
+    /// High priority
+    High,
+    /// Most urgent
+    Urgent,
 }
 
 impl fmt::Display for Priority {
@@ -35,13 +35,13 @@ impl fmt::Display for Priority {
 /// Task Status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum TaskStatus {
-    /// Pending (alias: t, p, pending)
+    /// Cancelled
+    Aborted,
+    /// Pending
     #[default]
     Todo,
-    /// Finished (alias: d, f, finished)
+    /// Finished
     Done,
-    /// Cancelled (alias: a, x, c, cancelled)
-    Aborted,
 }
 
 impl fmt::Display for TaskStatus {
