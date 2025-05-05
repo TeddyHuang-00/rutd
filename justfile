@@ -27,7 +27,7 @@ coverage: check
 
 # Release
 [no-cd]
-release:
+release: test
     #!/usr/bin/bash
     VERSION=$(git cliff --bump --bumped-version)
     cargo release "${VERSION#v}" --workspace {{EXCLUDE_OPT}}
