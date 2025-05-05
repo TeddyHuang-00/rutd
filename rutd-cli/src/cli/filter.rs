@@ -106,6 +106,116 @@ impl From<FilterOptions> for Filter {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{DateTime, Datelike, Local, TimeZone};
 
-    // TODO: Add tests for FilterOptions
+    use super::*;
+
+    // Helper function to create a date at a specific year, month, day
+    fn create_date(year: i32, month: u32, day: u32) -> DateTime<Local> {
+        Local.with_ymd_and_hms(year, month, day, 0, 0, 0).unwrap()
+    }
+
+    #[test]
+    fn test_filter_options_to_filter_conversion() {
+        // Create a FilterOptions with all fields filled
+        let filter_options = FilterOptions {
+            priority: Some(Priority::High),
+            task_scope: Some("test-scope".to_string()),
+            task_type: Some("test-type".to_string()),
+            status: Some(TaskStatus::Todo),
+            creation_time: Some(DateRange {
+                from: Some(create_date(2023, 1, 1)),
+                to: Some(create_date(2023, 12, 31)),
+            }),
+            update_time: Some(DateRange {
+                from: Some(create_date(2023, 1, 1)),
+                to: None,
+            }),
+            completion_time: Some(DateRange {
+                from: None,
+                to: Some(create_date(2023, 12, 31)),
+            }),
+            fuzzy: Some("test-description".to_string()),
+        };
+
+        // Convert to Filter
+        let filter: Filter = filter_options.into();
+
+        // Verify all fields are correctly converted
+        assert_eq!(filter.priority, Some(Priority::High));
+        assert_eq!(filter.task_scope, Some("test-scope".to_string()));
+        assert_eq!(filter.task_type, Some("test-type".to_string()));
+        assert_eq!(filter.status, Some(TaskStatus::Todo));
+
+        // Check date ranges
+        assert!(filter.creation_time.is_some());
+        if let Some(date_range) = filter.creation_time {
+            assert!(date_range.from.is_some());
+            assert!(date_range.to.is_some());
+            let from = date_range.from.unwrap();
+            let to = date_range.to.unwrap();
+            assert_eq!(from.date_naive().year(), 2023);
+            assert_eq!(from.date_naive().month(), 1);
+            assert_eq!(from.date_naive().day(), 1);
+            assert_eq!(to.date_naive().year(), 2023);
+            assert_eq!(to.date_naive().month(), 12);
+            assert_eq!(to.date_naive().day(), 31);
+        }
+
+        assert!(filter.update_time.is_some());
+        if let Some(date_range) = filter.update_time {
+            assert!(date_range.from.is_some());
+            assert!(date_range.to.is_none());
+        }
+
+        assert!(filter.completion_time.is_some());
+        if let Some(date_range) = filter.completion_time {
+            assert!(date_range.from.is_none());
+            assert!(date_range.to.is_some());
+        }
+
+        assert_eq!(filter.fuzzy, Some("test-description".to_string()));
+    }
+
+    #[test]
+    fn test_empty_filter_options() {
+        // Create an empty FilterOptions
+        let filter_options = FilterOptions::default();
+
+        // Convert to Filter
+        let filter: Filter = filter_options.into();
+
+        // Verify all fields are None
+        assert_eq!(filter.priority, None);
+        assert_eq!(filter.task_scope, None);
+        assert_eq!(filter.task_type, None);
+        assert_eq!(filter.status, None);
+        assert!(filter.creation_time.is_none());
+        assert!(filter.update_time.is_none());
+        assert!(filter.completion_time.is_none());
+        assert_eq!(filter.fuzzy, None);
+    }
+
+    #[test]
+    fn test_partial_filter_options() {
+        // Create a FilterOptions with only some fields filled
+        let filter_options = FilterOptions {
+            priority: Some(Priority::Urgent),
+            status: Some(TaskStatus::Done),
+            ..Default::default()
+        };
+
+        // Convert to Filter
+        let filter: Filter = filter_options.into();
+
+        // Verify only specified fields are filled, others are None
+        assert_eq!(filter.priority, Some(Priority::Urgent));
+        assert_eq!(filter.task_scope, None);
+        assert_eq!(filter.task_type, None);
+        assert_eq!(filter.status, Some(TaskStatus::Done));
+        assert!(filter.creation_time.is_none());
+        assert!(filter.update_time.is_none());
+        assert!(filter.completion_time.is_none());
+        assert_eq!(filter.fuzzy, None);
+    }
 }

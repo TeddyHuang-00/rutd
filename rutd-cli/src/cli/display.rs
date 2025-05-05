@@ -202,3 +202,123 @@ impl Display for DisplayManager {
         println!("{table}");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use chrono::Local;
+
+    use super::*;
+
+    fn create_test_task(id: &str, status: TaskStatus) -> Task {
+        Task {
+            id: id.to_string(),
+            description: format!("Test task {id}"),
+            priority: Priority::Normal,
+            scope: Some("test-scope".to_string()),
+            task_type: Some("test-type".to_string()),
+            status,
+            created_at: Local::now().to_rfc3339(),
+            updated_at: Some(Local::now().to_rfc3339()),
+            completed_at: if status == TaskStatus::Done || status == TaskStatus::Aborted {
+                Some(Local::now().to_rfc3339())
+            } else {
+                None
+            },
+            time_spent: Some(3600), // 1 hour in seconds
+        }
+    }
+
+    #[test]
+    fn test_format_priority_cell() {
+        let display = DisplayManager;
+
+        // Test formatting for each priority level
+        let urgent_cell = display.format_priority_cell(&Priority::Urgent);
+        let high_cell = display.format_priority_cell(&Priority::High);
+        let normal_cell = display.format_priority_cell(&Priority::Normal);
+        let low_cell = display.format_priority_cell(&Priority::Low);
+
+        // Check cell content (colors can't be easily tested)
+        assert_eq!(urgent_cell.content(), "urgent");
+        assert_eq!(high_cell.content(), "high");
+        assert_eq!(normal_cell.content(), "normal");
+        assert_eq!(low_cell.content(), "low");
+    }
+
+    #[test]
+    fn test_format_status_cell() {
+        let display = DisplayManager;
+
+        // Test formatting for each status
+        let todo_cell = display.format_status_cell(&TaskStatus::Todo);
+        let done_cell = display.format_status_cell(&TaskStatus::Done);
+        let aborted_cell = display.format_status_cell(&TaskStatus::Aborted);
+
+        // Check cell content (colors can't be easily tested)
+        assert_eq!(todo_cell.content(), "todo");
+        assert_eq!(done_cell.content(), "done");
+        assert_eq!(aborted_cell.content(), "aborted");
+    }
+
+    #[test]
+    fn test_show_task_stats() {
+        let display = DisplayManager;
+
+        // Create tasks with different statuses
+        let tasks = vec![
+            create_test_task("task1", TaskStatus::Todo),
+            create_test_task("task2", TaskStatus::Done),
+            create_test_task("task3", TaskStatus::Aborted),
+            create_test_task("task4", TaskStatus::Todo),
+        ];
+
+        // This is a visual test, so we just ensure it doesn't panic
+        display.show_task_stats(&tasks);
+        // For empty tasks
+        display.show_task_stats(&[]);
+    }
+
+    #[test]
+    fn test_show_tasks_list() {
+        let display = DisplayManager;
+
+        // Create a list of tasks
+        let tasks = vec![
+            create_test_task("task-123", TaskStatus::Todo),
+            create_test_task("task-456", TaskStatus::Done),
+            create_test_task("task-789", TaskStatus::Aborted),
+        ];
+
+        // This is a visual test, so we just ensure it doesn't panic
+        display.show_tasks_list(&tasks);
+        // For empty tasks
+        display.show_tasks_list(&[]);
+    }
+
+    #[test]
+    fn test_show_task_detail() {
+        let display = DisplayManager;
+
+        // Create a task with all details
+        let task = create_test_task("task-detail", TaskStatus::Done);
+
+        // This is a visual test, so we just ensure it doesn't panic
+        display.show_task_detail(&task);
+
+        // Test with minimal details
+        let minimal_task = Task {
+            id: "minimal".to_string(),
+            description: "Minimal task".to_string(),
+            priority: Priority::Normal,
+            scope: None,
+            task_type: None,
+            status: TaskStatus::Todo,
+            created_at: Local::now().to_rfc3339(),
+            updated_at: None,
+            completed_at: None,
+            time_spent: None,
+        };
+
+        display.show_task_detail(&minimal_task);
+    }
+}

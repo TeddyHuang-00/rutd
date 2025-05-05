@@ -49,9 +49,77 @@ mod tests {
         let sort_options = result.unwrap();
         assert_eq!(sort_options.criteria().len(), 2);
         assert_eq!(sort_options.criteria()[0].0, SortCriteria::Priority);
+        assert_eq!(sort_options.criteria()[0].1, SortOrder::Ascending);
         assert_eq!(sort_options.criteria()[1].0, SortCriteria::Scope);
+        assert_eq!(sort_options.criteria()[1].1, SortOrder::Descending);
 
-        // Test invalid sort options
+        // Test all possible criteria
+        let result = parse_sort_options("+p+s+t+c+u+T");
+        assert!(result.is_ok());
+        let sort_options = result.unwrap();
+        assert_eq!(sort_options.criteria().len(), 6);
+        assert_eq!(sort_options.criteria()[0].0, SortCriteria::Priority);
+        assert_eq!(sort_options.criteria()[1].0, SortCriteria::Scope);
+        assert_eq!(sort_options.criteria()[2].0, SortCriteria::Type);
+        assert_eq!(sort_options.criteria()[3].0, SortCriteria::CreationTime);
+        assert_eq!(sort_options.criteria()[4].0, SortCriteria::UpdateTime);
+        assert_eq!(sort_options.criteria()[5].0, SortCriteria::TimeSpent);
+    }
+
+    #[test]
+    fn test_parse_sort_options_edge_cases() {
+        // Test single criterion
+        let result = parse_sort_options("+p");
+        assert!(result.is_ok());
+        let sort_options = result.unwrap();
+        assert_eq!(sort_options.criteria().len(), 1);
+        assert_eq!(sort_options.criteria()[0].0, SortCriteria::Priority);
+        assert_eq!(sort_options.criteria()[0].1, SortOrder::Ascending);
+
+        // Test empty string
+        let result = parse_sort_options("");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Empty sort options")
+        );
+
+        // Test incomplete string (odd length)
+        let result = parse_sort_options("+");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid sort options")
+        );
+    }
+
+    #[test]
+    fn test_parse_sort_options_invalid_inputs() {
+        // Test invalid order character
+        let result = parse_sort_options("*p");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid sort options")
+        );
+
+        // Test invalid criterion character
+        let result = parse_sort_options("+x");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid sort options")
+        );
+
+        // Test invalid format
         let result = parse_sort_options("invalid");
         assert!(result.is_err());
     }

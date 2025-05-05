@@ -34,5 +34,64 @@ pub fn complete_sort_options(current: &OsStr) -> Vec<CompletionCandidate> {
 
 #[cfg(test)]
 mod tests {
-    // TODO: Add tests for the completion candidates
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+
+    use rutd_core::SortCriteria;
+
+    use super::*;
+
+    #[test]
+    fn test_complete_sort_options_empty() {
+        // Test with empty input
+        let current = OsString::from("");
+        let completions = complete_sort_options(&current);
+
+        // Should suggest sort orders (+ and -)
+        assert_eq!(completions.len(), 2);
+
+        // 检查是否有两个选项，但不检查具体内容
+        // 由于 CompletionCandidate 没有实现 ToString 或 Display，
+        // 我们只能检查数量，无法检查具体内容
+        assert_eq!(completions.len(), 2);
+    }
+
+    #[test]
+    fn test_complete_sort_options_order() {
+        // Test with a complete sort option, ready for a new order
+        let current = OsString::from("+p");
+        let completions = complete_sort_options(&current);
+
+        // Should suggest sort orders again (+ and -)
+        assert_eq!(completions.len(), 2);
+    }
+
+    #[test]
+    fn test_complete_sort_options_criteria() {
+        // Test with an order, ready for a criterion
+        let current = OsString::from("+");
+        let completions = complete_sort_options(&current);
+
+        // Should suggest all criteria
+        assert_eq!(completions.len(), SortCriteria::iter().count());
+    }
+
+    #[test]
+    fn test_complete_sort_options_multiple() {
+        // Test with multiple options already entered
+        let current = OsString::from("+p-s");
+        let completions = complete_sort_options(&current);
+
+        // Should suggest sort orders again
+        assert_eq!(completions.len(), 2);
+    }
+
+    #[test]
+    fn test_complete_sort_options_invalid_input() {
+        // Test with non-UTF8 input
+        let current = OsString::from_vec(vec![0xff, 0xff]);
+        let completions = complete_sort_options(&current);
+
+        // Should return empty vector for invalid inputs
+        assert!(completions.is_empty());
+    }
 }
