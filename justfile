@@ -39,7 +39,7 @@ release:
             echo "Aborting.";
             exit 1;
         fi
-    git cliff --tag-pattern "^v[0-9]+.[0-9]+.[0-9]+$" --bump -o CHANGELOG
-    git add CHANGELOG
+    git cliff --tag-pattern "^v[0-9]+.[0-9]+.[0-9]+$" --bump -o CHANGELOG.md
+    git add CHANGELOG.md
     git commit -m "chore: update changelog"
     cargo release "${VERSION#v}" --workspace {{EXCLUDE_OPT}} -x
