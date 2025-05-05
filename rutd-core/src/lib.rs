@@ -8,4 +8,6 @@ pub mod task;
 pub use config::Config;
 pub use display::Display;
 pub use git::MergeStrategy;
-pub use task::{Priority, Task, TaskManager, TaskStatus};
+pub use task::{
+    DateRange, Priority, SortCriteria, SortOptions, SortOrder, Task, TaskManager, TaskStatus,
+};

@@ -4,10 +4,11 @@ use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use uuid::Uuid;
 
 use super::{
+    SortOptions,
     active_task::{self, ActiveTask},
     filter::{DateRange, Filter},
     model::{Priority, Task, TaskStatus},
-    storage,
+    sort_tasks, storage,
 };
 use crate::{
     config::{GitConfig, PathConfig},
@@ -138,12 +139,22 @@ impl TaskManager {
     }
 
     /// List tasks with filtering support
-    pub fn list_tasks(&self, filter_options: &Filter) -> Result<Vec<Task>> {
+    pub fn list_tasks(
+        &self,
+        filter_options: &Filter,
+        sort_options: Option<&SortOptions>,
+    ) -> Result<Vec<Task>> {
         let tasks = storage::load_all_tasks(&self.path_config.task_dir_path())?;
-        let filtered_tasks = tasks
+        let mut filtered_tasks = tasks
             .into_iter()
             .filter(|task| Self::matches_filters(task, filter_options))
             .collect::<Vec<Task>>();
+
+        // Sort tasks if sort options are provided
+        let Some(sort_options) = sort_options else {
+            return Ok(filtered_tasks);
+        };
+        sort_tasks(&mut filtered_tasks, sort_options);
 
         Ok(filtered_tasks)
     }
@@ -400,7 +411,7 @@ impl TaskManager {
         display_manager: &D,
     ) -> Result<usize> {
         // Get tasks matching filters
-        let tasks = self.list_tasks(filter_options)?;
+        let tasks = self.list_tasks(filter_options, None)?;
 
         let count = tasks.len();
 
@@ -554,7 +565,7 @@ mod tests {
 
         // List tasks with no filters
         let filter = Filter::default();
-        let result = task_manager.list_tasks(&filter);
+        let result = task_manager.list_tasks(&filter, None);
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 3);
@@ -565,7 +576,7 @@ mod tests {
             priority: Some(Priority::High),
             ..Default::default()
         };
-        let result = task_manager.list_tasks(&filter);
+        let result = task_manager.list_tasks(&filter, None);
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 0);
