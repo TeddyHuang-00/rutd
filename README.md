@@ -167,3 +167,7 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Change Log
+
+See the [CHANGELOG](https://github.com/TeddyHuang-00/rutd/blob/main/CHANGELOG.md) for a detailed list of changes and updates.
