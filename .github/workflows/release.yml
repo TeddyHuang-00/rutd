@@ -102,10 +102,14 @@ jobs:
           # Check if version has pre-release suffix (contains '-')
           if [[ "$VERSION" == *"-"* ]]; then
             echo "Pre-release version detected: $VERSION"
+            PREV_TAG=$(git tag --sort=-v:refname | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+-" | grep -v "$CURRENT_TAG" | head -n 1 || echo "")
             echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
           else
             echo "Stable version detected: $VERSION"
+            PREV_TAG=$(git tag --sort=-v:refname | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | grep -v "$CURRENT_TAG" | head -n 1 || echo "")
             echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
           fi
 
       - name: Update CHANGELOG
@@ -113,7 +117,8 @@ jobs:
         uses: requarks/changelog-action@v1
         with:
           token: ${{ github.token }}
-          tag: ${{ github.ref_name }}
+          fromTag: ${{ github.ref_name }}
+          toTag: ${{ steps.is-prerelease.outputs.previous_tag }}
           writeToFile: false
 
       - name: Update Release
