@@ -66,26 +66,52 @@ RuTD supports shell completion with `clap_complete`. For better experience, RuTD
 
 ### Bash
 
+Run the following command in your terminal to add the completion script to your `~/.bashrc`:
+
 ```bash
-source <(COMPLETE=bash rutd)
+echo "source <(COMPLETE=bash rutd-cli)" >> ~/.bashrc
 ```
 
 ### Zsh
 
+Run the following command in your terminal to add the completion script to your `~/.zshrc`:
+
 ```zsh
-source <(COMPLETE=zsh rutd)
+echo "source <(COMPLETE=zsh rutd-cli)" >> ~/.zshrc
 ```
 
 ### Fish
 
+Run the following command in your terminal to add the completion script to your `~/.config/fish/config.fish`:
+
 ```fish
-source (COMPLETE=fish rutd | psub)
+echo "source (COMPLETE=fish rutd-cli | psub)" >> ~/.config/fish/config.fish
 ```
 
 ### Elvish
 
+Run the following command in your terminal to add the completion script to your `~/.elvish/rc.elv`:
+
 ```elvish
-eval (E:COMPLETE=elvish rutd | slurp)
+echo "eval (E:COMPLETE=elvish rutd-cli | slurp)" >> ~/.elvish/rc.elv
+```
+
+### Xonsh
+
+Install `fish` shell and follow the steps for [`fish` completion](#fish). Then, install `xontrib-fish-completer` and add the following line to your `~/.xonshrc`:
+
+```xsh
+xontrib load fish_completer
+```
+
+### PowerShell
+
+Run the following command in PowerShell to add the completion script to your profile:
+
+```powershell
+$env:COMPLETE = "powershell"
+echo "rutd-cli | Out-String | Invoke-Expression" >> $PROFILE
+Remove-Item Env:\COMPLETE
 ```
 
 ## Current Status & Roadmap
@@ -96,12 +122,12 @@ RuTD development follows a phased approach:
 
 - **🔄 Current Phase (In Progress)**:
   - [x] Dynamic shell completions
+  - [x] Windows support
   - [ ] Time-based conflict resolution
   - [ ] Background synchronization
   - [ ] Custom sorting
   - [ ] Configuration command (export default, edit, etc.)
   - [ ] Terminal User Interface (TUI) development
-  - [ ] Windows support
 - **🔮 Future Enhancements (Planned)**:
   - Configuration schema validation
   - Advanced TUI editing
