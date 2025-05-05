@@ -3,7 +3,7 @@
 [![MIT License](https://img.shields.io/github/license/TeddyHuang-00/rutd)](./LICENSE)
 [![Crates.io Version](https://img.shields.io/crates/v/rutd)](https://crates.io/crates/rutd)
 [![Crates.io Total Downloads](https://img.shields.io/crates/d/rutd)](https://crates.io/crates/rutd)
-[![GitHub branch status](https://img.shields.io/github/checks-status/TeddyHuang-00/rutd/main)](https://github.com/TeddyHuang-00/rutd/actions)
+[![GitHub branch check runs](https://img.shields.io/github/check-runs/TeddyHuang-00/rutd/main?cacheSeconds=60)](https://github.com/TeddyHuang-00/rutd/actions)
 [![GitHub Stars](https://img.shields.io/github/stars/TeddyHuang-00/rutd)](https://github.com/TeddyHuang-00/rutd)
 
 RuTD ("Rust To Do" or "Rush To Do") is a high-performance todo list manager built in Rust. It's designed for developers and power users who value efficiency, control, and Git integration in their task management workflow.
@@ -15,17 +15,17 @@ RuTD ("Rust To Do" or "Rush To Do") is a high-performance todo list manager buil
 - **Fast & Lightweight**: Written in Rust for excellent performance and minimal resource usage
 - **Git-Integrated**: Automatically tracks task changes in Git for version control and syncing
 - **CLI-First**: Powerful command-line interface with intuitive commands and filtering
+- **Dynamic Shell Completions**: Built-in completion for Bash, Zsh, Fish, and Elvish
+- **Advanced Filtering**: Powerful query capabilities for finding and organizing tasks
 - **Flexible Storage**: Task data stored in TOML format, one file per task
 - **Developer-Friendly**: Designed by developers, for developers
 - **Conventional Commits**: Automated commit message generation following standards
-- **Dynamic Shell Completions**: Built-in completion for Bash, Zsh, Fish, and Elvish
-- **Advanced Filtering**: Powerful query capabilities for finding and organizing tasks
 
 ## Installation
 
 ### Pre-built Binaries
 
-Pre-built binaries are available for Linux, macOS. You can download the latest release from the [Releases page](https://github.com/TeddyHuang-00/rutd/releases).
+Pre-built binaries are available for Linux, macOS and Windows. You can download the latest release from the [Releases page](https://github.com/TeddyHuang-00/rutd/releases).
 
 ### Build from source
 
@@ -45,19 +45,19 @@ cargo install rutd-cli
 
 ```bash
 # Add a new task
-rutd add "Implement new feature" --priority high --scope backend --type feat
+rutd-cli add "Implement new feature" --priority high --scope backend --type feat
 
 # List all tasks
-rutd list
+rutd-cli list
 
 # List high priority tasks
-rutd list --priority high
+rutd-cli list --priority high
 
 # Mark a task as done (replace task-id with the actual ID)
-rutd done task-id
+rutd-cli done task-id
 
 # Edit a task
-rutd edit task-id
+rutd-cli edit task-id
 ```
 
 ## Shell Completion
@@ -100,7 +100,7 @@ echo "eval (E:COMPLETE=elvish rutd-cli | slurp)" >> ~/.elvish/rc.elv
 
 Install `fish` shell and follow the steps for [`fish` completion](#fish). Then, install `xontrib-fish-completer` and add the following line to your `~/.xonshrc`:
 
-```xsh
+```xonsh
 xontrib load fish_completer
 ```
 
@@ -123,9 +123,9 @@ RuTD development follows a phased approach:
 - **🔄 Current Phase (In Progress)**:
   - [x] Dynamic shell completions
   - [x] Windows support
+  - [x] Custom sorting
   - [ ] Time-based conflict resolution
   - [ ] Background synchronization
-  - [ ] Custom sorting
   - [ ] Configuration command (export default, edit, etc.)
   - [ ] Terminal User Interface (TUI) development
 - **🔮 Future Enhancements (Planned)**:
