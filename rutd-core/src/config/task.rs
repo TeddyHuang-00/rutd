@@ -36,7 +36,9 @@ mod tests {
         assert_eq!(config.scopes[0], "other");
 
         // Check default types
-        assert_eq!(config.types.len(), 8);
+        assert_eq!(config.types.len(), 10);
+        assert!(config.types.contains(&"feat".to_string()));
+        assert!(config.types.contains(&"fix".to_string()));
         assert!(config.types.contains(&"build".to_string()));
         assert!(config.types.contains(&"chore".to_string()));
         assert!(config.types.contains(&"ci".to_string()));
