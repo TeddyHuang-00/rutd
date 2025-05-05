@@ -45,7 +45,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Run Unit Tests
-        run: cargo test --workspace --all-targets
+        run: cargo test --workspace --all-targets -- --test-threads=1
 
   test-build:
     name: Build ${{ matrix.target }}
