@@ -1,5 +1,9 @@
+# ignore all build artifacts
 /target
-.todos
+
+# ignore coverage reports
+/coverage
+
 # ignore all markdown except README.md
 *.md
 !README.md
