@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2025-05-05
+
+### 🐛 Bug Fixes
+
+- *(core)* Update DEFAULT_TYPES to include 'feat' and 'fix'
+
+### 📚 Documentation
+
+- Add Change Log section to README with link to CHANGELOG.md
+
+### 🧪 Testing
+
+- Ensure unit tests run with a single thread to avoid env var conflict
+
+### ⚙️ Miscellaneous Tasks
+
+- Ensure unit tests run with a single thread to avoid env var conflict
+- Allow CHANGELOG.md in .gitignore
+- Rename changelog
+
 ## [0.6.0] - 2025-05-05
 
 ### 🚀 Features
