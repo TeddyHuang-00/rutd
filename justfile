@@ -1,5 +1,6 @@
-# Temporarily exclude rutd-tui from release builds since it is still WIP
-RELEASE_OPT := "--exclude rutd-tui"
+# Temporarily exclude rutd-tui since it is still WIP
+EXCLUDE_OPT := "--exclude rutd-tui"
+WORKSPACE_FLAGS := "--workspace --all-targets"
 
 # Format code
 format:
@@ -7,26 +8,29 @@ format:
 
 # Check unused dependencies
 deps:
-    cargo +nightly udeps --workspace --all-targets
+    cargo +nightly udeps {{WORKSPACE_FLAGS}}
 
 # Check for errors
 check: format
-    cargo clippy --workspace --all-targets --fix --allow-staged
+    cargo clippy {{WORKSPACE_FLAGS}} --fix --allow-staged
     @just format
 
 # Unit tests
 test: check
-    cargo test --workspace --all-targets
+    cargo test {{WORKSPACE_FLAGS}}
+
+# Coverage report
+coverage: check
+    cargo tarpaulin {{WORKSPACE_FLAGS}} {{EXCLUDE_OPT}} --out Html --output-dir coverage
 
 # Test release
 [no-cd]
 release-test TARGET:
-    cargo release {{TARGET}} --workspace {{RELEASE_OPT}}
+    cargo release {{TARGET}} --workspace {{EXCLUDE_OPT}}
 
 # Release
 [no-cd]
 release TARGET:
-    #!/usr/bin/bash
     just release-test {{TARGET}}
-    echo "Do you want to continue publishing the release? (y/n)"
-    cargo release {{TARGET}} --workspace {{RELEASE_OPT}} -x
+    echo "Do you want to continue publishing the following releases?"
+    cargo release {{TARGET}} --workspace {{EXCLUDE_OPT}} -x
