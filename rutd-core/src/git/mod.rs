@@ -4,7 +4,7 @@ use std::fmt;
 
 use strum::{AsRefStr, EnumIter, EnumMessage, EnumString};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumMessage, EnumIter, AsRefStr)]
+#[derive(AsRefStr, Clone, Copy, Debug, EnumIter, EnumMessage, EnumString, Eq, PartialEq)]
 pub enum MergeStrategy {
     /// Do not automatically merge
     #[strum(

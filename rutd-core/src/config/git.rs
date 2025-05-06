@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Git configuration for authentication
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct GitConfig {
     /// Git username for authentication
     pub username: String,

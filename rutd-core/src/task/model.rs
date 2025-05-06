@@ -84,7 +84,7 @@ impl fmt::Display for TaskStatus {
 }
 
 /// Task Structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Task {
     /// Task ID
     pub id: String,

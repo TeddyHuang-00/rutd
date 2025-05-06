@@ -3,7 +3,7 @@ use chrono::{DateTime, Local};
 use super::{Priority, TaskStatus};
 
 /// Filter options for task queries
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Filter {
     /// Filter by priority
     pub priority: Option<Priority>,
@@ -31,7 +31,7 @@ pub struct Filter {
 }
 
 /// DateRange struct for robust date parsing
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct DateRange {
     /// Start date limit (None if no lower bound)
     pub from: Option<DateTime<Local>>,

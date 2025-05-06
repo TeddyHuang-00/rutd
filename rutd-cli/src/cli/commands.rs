@@ -6,7 +6,7 @@ use super::FilterOptions;
 use crate::{completer, parser};
 
 /// RuTD - A Rust based To-Do list manager for your rushing to-dos
-#[derive(Parser, Debug)]
+#[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
@@ -17,7 +17,7 @@ pub struct Cli {
     pub verbose: u8,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Debug, Subcommand)]
 pub enum Commands {
     /// Add a new task
     ///

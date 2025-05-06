@@ -21,7 +21,7 @@ Relative format also supports:
    unit is used to determine the cycle for rounding in non-exact mode.";
 
 /// CLI-specific filter options for task queries with parsing logic
-#[derive(Debug, Clone, Default, Args)]
+#[derive(Args, Clone, Debug, Default)]
 pub struct FilterOptions {
     /// Filter by priority
     #[arg(

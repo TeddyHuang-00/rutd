@@ -4,7 +4,7 @@ use strum::{EnumIter, EnumMessage, EnumString};
 use super::Task;
 
 /// Specifies the order of sorting (ascending or descending)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter, EnumMessage)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumMessage, EnumString, Eq, PartialEq)]
 pub enum SortOrder {
     /// Sort in ascending order
     #[strum(serialize = "+")]
@@ -15,7 +15,7 @@ pub enum SortOrder {
 }
 
 /// Criteria by which tasks can be sorted
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter, EnumMessage)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumMessage, EnumString, Eq, PartialEq)]
 pub enum SortCriteria {
     /// Sort by priority (Urgent → High → Normal → Low)
     #[strum(serialize = "p")]
@@ -44,7 +44,7 @@ pub enum SortCriteria {
 }
 
 /// Configuration for sorting tasks
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct SortOptions {
     /// List of criteria to sort by, in order of precedence
     criteria: Vec<(SortCriteria, SortOrder)>,

@@ -10,7 +10,7 @@ pub const DEFAULT_ACTIVE_FILE: &str = "active_task.toml";
 pub const DEFAULT_LOG_FILE: &str = "rutd.log";
 
 /// Path configuration management
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PathConfig {
     /// Root directory path
     pub root_dir: PathBuf,

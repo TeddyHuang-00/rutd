@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 pub use task::TaskConfig;
 
 /// Main configuration structure that holds all configuration options
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Config {
     /// Path configuration
     pub path: PathConfig,

@@ -6,7 +6,7 @@ const DEFAULT_TYPES: [&str; 10] = [
 ];
 
 /// Task configuration
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct TaskConfig {
     /// Pinned task scopes for autocompletion
     pub scopes: Vec<String>,

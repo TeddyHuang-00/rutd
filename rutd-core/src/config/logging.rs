@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_MAX_LOG_HISTORY: usize = 100;
 
 /// General configuration settings
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct LogConfig {
     /// Maximum number of lines to keep in log file
     ///
