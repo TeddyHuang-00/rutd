@@ -9,7 +9,6 @@ license.workspace = true
 readme.workspace = true
 
 [dependencies]
-rutd-core = { path = "../rutd-core", version = "0.6.1" }
 anyhow.workspace = true
 chrono.workspace = true
 clap.workspace = true
@@ -19,6 +18,7 @@ comfy-table.workspace = true
 dialoguer.workspace = true
 fuzzy-matcher.workspace = true
 log.workspace = true
+rutd-core = { path = "../rutd-core", version = "0.6.1" }
 simple_logger.workspace = true
 strum.workspace = true
 tempfile.workspace = true

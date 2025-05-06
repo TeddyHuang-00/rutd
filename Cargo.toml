@@ -1,5 +1,5 @@
 [workspace]
-members = ["rutd-core", "rutd-cli", "rutd-tui"]
+members = ["rutd-cli", "rutd-core", "rutd-tui"]
 resolver = "2"
 
 [package]
@@ -25,7 +25,6 @@ vendored = ["rutd-cli/vendored"]
 [[bin]]
 name = "rutd-cli"
 path = "src/cli.rs"
-
 # [[bin]]
 # name = "rutd-tui"
 # path = "src/bin/tui.rs"

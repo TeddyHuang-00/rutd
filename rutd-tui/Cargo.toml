@@ -9,6 +9,6 @@ license.workspace = true
 readme.workspace = true
 
 [dependencies]
-rutd-core = { path = "../rutd-core" }
 anyhow.workspace = true
 log.workspace = true
+rutd-core = { path = "../rutd-core" }
