@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2025-05-06
+
+### 🐛 Bug Fixes
+
+- *(tests)* Update default task types count and assertions
+
+### ⚡ Performance
+
+- Add release profile settings for reducing binary size
+
+### 🎨 Styling
+
+- *(core)* Format code
+- Reorder derive attributes for consistency across structs
+
+### ⚙️ Miscellaneous Tasks
+
+- Ensure tests are performed before releasing
+- Remove unwanted artifacts
+- Update build and test commands to use frozen flags
+- Add frozen flag to workspace options
+- Update workspace flags to use locked instead of frozen
+- Update workflow to use locked flags instead of frozen
+- Reorder workspace members
+- Update format task to include cargo sort-derives and sort
+- Add release management recipes for pre-release
+- Fix line ending
+- Refactor release script to use CLIFF_OPTS for versioning and changelog generation
+- Refine CLIFF_OPTS and update changelog generation process
+
 ## [0.6.1] - 2025-05-05
 
 ### 🐛 Bug Fixes
