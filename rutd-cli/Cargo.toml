@@ -28,3 +28,7 @@ toml.workspace = true
 default = []
 debug = ["clap_complete/debug"]
 vendored = ["rutd-core/vendored"]
+
+[profile.release]
+strip = true
+lto = true
