@@ -1,6 +1,6 @@
 # Temporarily exclude rutd-tui since it is still WIP
 EXCLUDE_OPT := "--exclude rutd-tui"
-WORKSPACE_FLAGS := "--workspace --all-targets --frozen"
+WORKSPACE_FLAGS := "--workspace --all-targets --locked"
 
 import "recipes/demo.just"
 
