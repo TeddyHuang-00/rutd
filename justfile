@@ -7,6 +7,8 @@ import "recipes/demo.just"
 # Format code
 format:
     cargo +nightly fmt --all
+    cargo sort --workspace
+    cargo sort-derives
 
 # Check unused dependencies
 deps:
