@@ -12,6 +12,9 @@ on:
       - "**"
   workflow_dispatch:
 
+env:
+  WORKSPACE_FLAGS: "--workspace --all-targets --frozen"
+
 jobs:
   format:
     name: Code Format
@@ -35,7 +38,7 @@ jobs:
           components: clippy
 
       - name: Run Clippy
-        run: cargo clippy --all --workspace --all-targets -- -Dwarnings
+        run: cargo clippy $WORKSPACE_FLAGS -- -Dwarnings
 
   unit-test:
     name: Unit Test
@@ -45,7 +48,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Run Unit Tests
-        run: cargo test --workspace --all-targets -- --test-threads=1
+        run: cargo test $WORKSPACE_FLAGS -- --test-threads=1
 
   test-build:
     name: Build ${{ matrix.target }}
@@ -90,6 +93,6 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Run Build
-        run: cargo build --verbose --release --target ${{ matrix.target }} -F ${{ matrix.feature }}
+        run: cargo build --frozen --release --target ${{ matrix.target }} -F ${{ matrix.feature }}
 
       # We might include unit test in the future, but we don't have any at the time

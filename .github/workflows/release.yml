@@ -43,14 +43,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools pkg-config libssl-dev
-          # echo "OPENSSL_DIR=/usr" >> $GITHUB_OUTPUT
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           target: ${{ matrix.target }}
 
       - name: Run Build
-        run: cargo build --verbose --release --target ${{ matrix.target }} -F ${{ matrix.feature }}
+        run: cargo build --frozen --release --target ${{ matrix.target }} -F ${{ matrix.feature }}
 
       - name: Setup python for checksums
         uses: actions/setup-python@v5
