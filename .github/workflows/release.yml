@@ -63,16 +63,13 @@ jobs:
           directory=rutd-${{ matrix.target }}
           mkdir $directory
           cp README.md LICENSE $directory
-          cp target/${{ matrix.target }}/release/rutd-* $directory
-          tar cJf $directory.tar.xz $directory
-          python3 -c "import hashlib; open('$directory.tar.xz.sha256', 'w').write(hashlib.file_digest(open('$directory.tar.xz', 'rb'), 'sha256').hexdigest())"
 
           if [ -f target/${{ matrix.target }}/release/rutd-cli.exe ]; then
-            cp target/${{ matrix.target }}/release/rutd-*.exe $directory
+            cp target/${{ matrix.target }}/release/rutd-*i.exe $directory
             7z a -r $directory.zip $directory
             python3 -c "import hashlib; open('$directory.zip.sha256', 'w').write(hashlib.file_digest(open('$directory.zip', 'rb'), 'sha256').hexdigest())"
           else
-            cp target/${{ matrix.target }}/release/rutd-* $directory
+            cp target/${{ matrix.target }}/release/rutd-*i $directory
             tar cJf $directory.tar.xz $directory
             python3 -c "import hashlib; open('$directory.tar.xz.sha256', 'w').write(hashlib.file_digest(open('$directory.tar.xz', 'rb'), 'sha256').hexdigest())"
           fi
