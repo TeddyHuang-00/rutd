@@ -1,15 +1,15 @@
-CLIFF_OPTS := "--tag-pattern '^v[0-9]+.[0-9]+.[0-9]+$' --bump"
+CLIFF_OPTS := "--tag-pattern '^v[0-9]+.[0-9]+.[0-9]+$'"
 
 # Pre-release to github only
 [working-directory: '.']
 pre-release LEVEL: test
-    cargo release {{LEVEL}} --workspace {{EXCLUDE_OPT}} -x --no-publish
+    cargo release {{LEVEL}} --workspace {{EXCLUDE_OPT}} -x
 
 # Release
 [working-directory: '.']
 release: test
     #!/usr/bin/bash
-    VERSION=$(git cliff {{CLIFF_OPTS}} --bumped-version)
+    VERSION=$(git cliff {{CLIFF_OPTS}} --bump --bumped-version)
     cargo release "${VERSION#v}" --workspace {{EXCLUDE_OPT}}
     echo "Will bump version to $VERSION"
     read -p "Continue? [y/N] " yn;
@@ -19,7 +19,7 @@ release: test
             echo "Aborting.";
             exit 1;
         fi
-    git cliff {{CLIFF_OPTS}} -o CHANGELOG.md
+    git cliff {{CLIFF_OPTS}} --bump -o CHANGELOG.md
     git add CHANGELOG.md
     git commit -m "chore: update changelog"
     cargo release "${VERSION#v}" --workspace {{EXCLUDE_OPT}} -x
