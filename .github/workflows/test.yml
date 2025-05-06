@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 env:
-  WORKSPACE_FLAGS: "--workspace --all-targets --frozen"
+  WORKSPACE_FLAGS: "--workspace --all-targets --locked"
 
 jobs:
   format:
@@ -93,6 +93,4 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Run Build
-        run: cargo build --frozen --release --target ${{ matrix.target }} -F ${{ matrix.feature }}
-
-      # We might include unit test in the future, but we don't have any at the time
+        run: cargo build --locked --target ${{ matrix.target }} -F ${{ matrix.feature }}
