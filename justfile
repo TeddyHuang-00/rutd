@@ -3,6 +3,7 @@ EXCLUDE_OPT := "--exclude rutd-tui"
 WORKSPACE_FLAGS := "--workspace --all-targets --locked"
 
 import "recipes/demo.just"
+import "recipes/release.just"
 
 # Format code
 format:
@@ -27,21 +28,3 @@ test: check
 coverage: check
     cargo tarpaulin {{WORKSPACE_FLAGS}} {{EXCLUDE_OPT}} --out Html --output-dir coverage
 
-# Release
-[no-cd]
-release: test
-    #!/usr/bin/bash
-    VERSION=$(git cliff --bump --bumped-version)
-    cargo release "${VERSION#v}" --workspace {{EXCLUDE_OPT}}
-    echo "Will bump version to $VERSION"
-    read -p "Continue? [y/N] " yn;
-        if [ "$yn" = "y" ]; then
-            echo "Bumping version...";
-        else
-            echo "Aborting.";
-            exit 1;
-        fi
-    git cliff --tag-pattern "^v[0-9]+.[0-9]+.[0-9]+$" --bump -o CHANGELOG.md
-    git add CHANGELOG.md
-    git commit -m "chore: update changelog"
-    cargo release "${VERSION#v}" --workspace {{EXCLUDE_OPT}} -x
