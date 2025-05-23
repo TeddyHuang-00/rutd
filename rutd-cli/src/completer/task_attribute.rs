@@ -30,7 +30,8 @@ pub fn complete_id(current: &OsStr) -> Vec<CompletionCandidate> {
         .map(|task| {
             // Take the first line of the task description as help text
             let short_description = task.description.lines().next().map(String::from);
-            CompletionCandidate::new(task.id).help(short_description.map(StyledStr::from))
+            let truncated_id = task.id.chars().take(8).collect::<String>();
+            CompletionCandidate::new(truncated_id).help(short_description.map(StyledStr::from))
         })
         .collect()
 }
@@ -206,6 +207,37 @@ mod tests {
                 env::remove_var(key);
             }
         }
+    }
+
+    #[test]
+    fn test_complete_id_truncation() {
+        let (temp_dir, env_vars) = setup_test_env();
+        let task_dir = temp_dir.path().join("tasks");
+
+        // Create a task with a long ID
+        let long_id_task = create_test_task("longid12345", Some("test"), Some("truncation"));
+        let file_path = task_dir.join(format!("{}.toml", long_id_task.id));
+        let toml_string = toml::to_string(&long_id_task).unwrap();
+        let mut file = File::create(file_path).unwrap();
+        file.write_all(toml_string.as_bytes()).unwrap();
+
+        // Test with the prefix of the long ID
+        let completions = complete_id(OsStr::new("longid"));
+        assert_eq!(completions.len(), 1);
+        assert_eq!(completions[0].get_value(), "longid12");
+
+        // Test with the full long ID as prefix (should still truncate)
+        let completions_full = complete_id(OsStr::new("longid12345"));
+        assert_eq!(completions_full.len(), 1);
+        assert_eq!(completions_full[0].get_value(), "longid12");
+
+        // Test with a short ID that should not be truncated
+        let completions_short = complete_id(OsStr::new("task-123"));
+        assert_eq!(completions_short.len(), 1);
+        assert_eq!(completions_short[0].get_value(), "task-123");
+
+        cleanup_env_vars(&env_vars);
+        drop(temp_dir);
     }
 
     #[test]
