@@ -224,18 +224,17 @@ mod tests {
         // Test with the prefix of the long ID
         let completions = complete_id(OsStr::new("longid"));
         assert_eq!(completions.len(), 1);
-        assert_eq!(completions[0].value(), "longid12");
+        assert_eq!(completions[0].get_value(), "longid12");
 
         // Test with the full long ID as prefix (should still truncate)
         let completions_full = complete_id(OsStr::new("longid12345"));
         assert_eq!(completions_full.len(), 1);
-        assert_eq!(completions_full[0].value(), "longid12");
-        
+        assert_eq!(completions_full[0].get_value(), "longid12");
+
         // Test with a short ID that should not be truncated
         let completions_short = complete_id(OsStr::new("task-123"));
         assert_eq!(completions_short.len(), 1);
-        assert_eq!(completions_short[0].value(), "task-123");
-
+        assert_eq!(completions_short[0].get_value(), "task-123");
 
         cleanup_env_vars(&env_vars);
         drop(temp_dir);
