@@ -202,7 +202,7 @@ mod tests {
         ) = task;
         Task {
             id: id.to_string(),
-            description: format!("Task {}", id),
+            description: format!("Task {id}"),
             priority,
             scope: scope.map(|s| s.to_string()),
             task_type: task_type.map(|t| t.to_string()),
