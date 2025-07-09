@@ -26,7 +26,3 @@ strum.workspace = true
 tempfile.workspace = true
 toml.workspace = true
 uuid.workspace = true
-
-[profile.release]
-strip = true
-lto = true

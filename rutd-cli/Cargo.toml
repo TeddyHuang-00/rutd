@@ -28,7 +28,3 @@ simple_logger.workspace = true
 strum.workspace = true
 tempfile.workspace = true
 toml.workspace = true
-
-[profile.release]
-strip = true
-lto = true

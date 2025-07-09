@@ -12,7 +12,3 @@ readme.workspace = true
 anyhow.workspace = true
 log.workspace = true
 rutd-core = { path = "../rutd-core" }
-
-[profile.release]
-strip = true
-lto = true
