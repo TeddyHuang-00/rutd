@@ -153,6 +153,47 @@ pub enum Commands {
         #[arg(value_hint = clap::ValueHint::Url)]
         url: String,
     },
+    /// Manage configuration
+    ///
+    /// Get, set, or list configuration values
+    #[command(visible_aliases = ["cfg"])]
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommands,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ConfigCommands {
+    /// Get a configuration value
+    Get {
+        /// Configuration key (e.g., "git.username", "path.root_dir")
+        #[arg(add = ArgValueCompleter::new(completer::complete_config_key))]
+        key: String,
+    },
+    /// Set a configuration value
+    Set {
+        /// Configuration key (e.g., "git.username", "path.root_dir")
+        #[arg(add = ArgValueCompleter::new(completer::complete_config_key))]
+        key: String,
+        /// Configuration value
+        value: String,
+    },
+    /// List all configuration values
+    List {
+        /// Show only keys (no values)
+        #[arg(long)]
+        keys_only: bool,
+        /// Show effective values (including computed defaults)
+        #[arg(long)]
+        effective: bool,
+    },
+    /// Remove a configuration value
+    Unset {
+        /// Configuration key (e.g., "git.username", "path.root_dir")
+        #[arg(add = ArgValueCompleter::new(completer::complete_config_key))]
+        key: String,
+    },
 }
 
 #[cfg(test)]
