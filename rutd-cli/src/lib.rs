@@ -269,16 +269,16 @@ pub fn app() -> ExitCode {
                         return ExitCode::FAILURE;
                     }
                 }
-                ConfigCommands::List { keys_only, effective } => {
-                    log::trace!("List config values (keys_only: {keys_only}, effective: {effective})");
+                ConfigCommands::Show => {
+                    log::trace!("Show all config values");
 
                     if config_manager
-                        .list_config_values_with_source(keys_only, !effective)
+                        .list_config_values()
                         .inspect(|values| {
                             if values.is_empty() {
                                 display_manager.show_success("No configuration values found")
                             } else {
-                                display_manager.show_config_values(values, keys_only);
+                                display_manager.show_config_values(values);
                             }
                         })
                         .inspect_err(|e| {
@@ -296,7 +296,8 @@ pub fn app() -> ExitCode {
                     if config_manager
                         .unset_config_value(&key)
                         .inspect(|_| {
-                            display_manager.show_success(&format!("Configuration key '{key}' removed"));
+                            display_manager
+                                .show_success(&format!("Configuration key '{key}' removed"));
                         })
                         .inspect_err(|e| {
                             display_manager

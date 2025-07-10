@@ -211,22 +211,15 @@ impl Display for DisplayManager {
 
 impl DisplayManager {
     /// Display configuration values
-    pub fn show_config_values(&self, values: &BTreeMap<String, String>, keys_only: bool) {
+    pub fn show_config_values(&self, values: &BTreeMap<String, String>) {
         let mut table = Table::new();
         table
             .load_preset(comfy_table::presets::UTF8_FULL)
             .apply_modifier(comfy_table::modifiers::UTF8_ROUND_CORNERS);
 
-        if keys_only {
-            table.set_header(vec!["Configuration Key"]);
-            for key in values.keys() {
-                table.add_row(vec![key]);
-            }
-        } else {
-            table.set_header(vec!["Configuration Key", "Value"]);
-            for (key, value) in values {
-                table.add_row(vec![key, value]);
-            }
+        table.set_header(vec!["Configuration Key", "Value"]);
+        for (key, value) in values {
+            table.add_row(vec![key, value]);
         }
 
         println!("{table}");

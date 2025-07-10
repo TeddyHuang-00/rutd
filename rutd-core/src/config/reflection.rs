@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use anyhow::{Context, Result};
 use serde_json::Value as JsonValue;
 use toml_edit::{Array, Formatted, Value as TomlValue};
@@ -11,8 +9,6 @@ use super::Config;
 struct FieldInfo {
     path: String,
     value_type: String,
-    #[allow(dead_code)] // May be used for future enhancements like showing example values
-    example_value: JsonValue,
 }
 
 /// Trait for types that can provide configuration field information
@@ -94,7 +90,6 @@ fn discover_all_paths(value: &JsonValue) -> Vec<FieldInfo> {
                         paths.push(FieldInfo {
                             path: new_path.clone(),
                             value_type,
-                            example_value: val.clone(),
                         });
                     } else {
                         // Continue recursing for nested structures
@@ -202,21 +197,6 @@ fn format_json_value_for_display(value: &JsonValue) -> Result<String> {
     }
 }
 
-/// Helper to collect all configuration values into a map
-pub fn collect_config_values(config: &Config, keys_only: bool) -> BTreeMap<String, String> {
-    let mut result = BTreeMap::new();
-
-    for path in Config::get_field_paths() {
-        if keys_only {
-            result.insert(path, String::new());
-        } else if let Ok(value) = config.get_field_value(&path) {
-            result.insert(path, value);
-        }
-    }
-
-    result
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -320,21 +300,6 @@ mod tests {
         assert!(Config::is_valid_path("log.console"));
         assert!(!Config::is_valid_path("invalid.key"));
         assert!(!Config::is_valid_path("git.invalid"));
-    }
-
-    #[test]
-    fn test_collect_config_values() {
-        let config = create_test_config();
-
-        // Test collecting values
-        let values = collect_config_values(&config, false);
-        assert!(!values.is_empty());
-        assert_eq!(values.get("git.username").unwrap(), "test-user");
-
-        // Test collecting keys only
-        let keys = collect_config_values(&config, true);
-        assert!(!keys.is_empty());
-        assert!(keys.get("git.username").unwrap().is_empty());
     }
 
     #[test]

@@ -179,21 +179,14 @@ pub enum ConfigCommands {
         /// Configuration value
         value: String,
     },
-    /// List all configuration values
-    List {
-        /// Show only keys (no values)
-        #[arg(long)]
-        keys_only: bool,
-        /// Show effective values (including computed defaults)
-        #[arg(long)]
-        effective: bool,
-    },
     /// Remove a configuration value
     Unset {
         /// Configuration key (e.g., "git.username", "path.root_dir")
         #[arg(add = ArgValueCompleter::new(completer::complete_config_key))]
         key: String,
     },
+    /// Show all configuration values
+    Show,
 }
 
 #[cfg(test)]

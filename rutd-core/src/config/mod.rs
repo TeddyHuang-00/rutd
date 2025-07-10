@@ -14,7 +14,7 @@ pub use git::GitConfig;
 pub use logging::LogConfig;
 pub use manager::ConfigManager;
 pub use path::PathConfig;
-pub use reflection::{ConfigReflection, collect_config_values};
+pub use reflection::ConfigReflection;
 use serde::{Deserialize, Serialize};
 pub use task::TaskConfig;
 

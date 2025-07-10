@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fs, path::Path};
 use anyhow::{Context, Result};
 use toml_edit::{DocumentMut, Item, Table};
 
-use super::{Config, ConfigReflection, collect_config_values};
+use super::{Config, ConfigReflection};
 
 pub struct ConfigManager {
     config_path: String,
@@ -32,15 +32,15 @@ impl ConfigManager {
             let content = fs::read_to_string(&self.config_path)
                 .with_context(|| format!("Failed to read config file: {}", self.config_path))?;
 
-            if let Ok(doc) = content.parse::<DocumentMut>() {
-                if let Some(value) = self.get_value_from_document(&doc, key) {
-                    return Ok(value);
-                }
+            if let Ok(doc) = content.parse::<DocumentMut>()
+                && let Some(value) = self.get_value_from_file(&doc, key)
+            {
+                return Ok(value);
             }
         }
 
         // Fall back to current config using reflection
-        let config = self.load_current_config()?;
+        let config = Config::new().with_context(|| "Failed to load current configuration")?;
         config.get_field_value(key)
     }
 
@@ -63,7 +63,7 @@ impl ConfigManager {
             DocumentMut::new()
         };
 
-        self.set_value_in_document(&mut doc, key, value)?;
+        self.set_value_in_file(&mut doc, key, value)?;
 
         fs::write(&self.config_path, doc.to_string())
             .with_context(|| format!("Failed to write config file: {}", self.config_path))?;
@@ -89,7 +89,7 @@ impl ConfigManager {
             .parse::<DocumentMut>()
             .with_context(|| format!("Failed to parse config file: {}", self.config_path))?;
 
-        self.remove_value_from_document(&mut doc, key)?;
+        self.remove_value_from_file(&mut doc, key)?;
 
         fs::write(&self.config_path, doc.to_string())
             .with_context(|| format!("Failed to write config file: {}", self.config_path))?;
@@ -97,56 +97,42 @@ impl ConfigManager {
         Ok(())
     }
 
-    pub fn list_config_values(&self, keys_only: bool) -> Result<BTreeMap<String, String>> {
-        self.list_config_values_with_source(keys_only, false)
-    }
-
     /// List configuration values showing user-configured values over defaults
-    pub fn list_config_values_with_source(&self, keys_only: bool, prefer_user_values: bool) -> Result<BTreeMap<String, String>> {
-        if prefer_user_values {
-            self.collect_user_configured_values(keys_only)
-        } else {
-            let config = self.load_current_config()?;
-            Ok(collect_config_values(&config, keys_only))
-        }
-    }
-
-    /// Collect values showing user-configured values first, falling back to defaults
-    fn collect_user_configured_values(&self, keys_only: bool) -> Result<BTreeMap<String, String>> {
-        let mut result = BTreeMap::new();
+    pub fn list_config_values(&self) -> Result<BTreeMap<String, String>> {
         let default_config = Config::default();
 
-        for path in Config::get_field_paths() {
-            if keys_only {
-                result.insert(path, String::new());
-                continue;
-            }
-
-            // Check if user has configured this value
-            if let Some(user_value) = self.get_user_configured_value(&path)? {
-                result.insert(path, user_value);
-            } else {
-                // Fall back to default value but mark it as default
-                if let Ok(default_value) = default_config.get_field_value(&path) {
-                    result.insert(path, format!("{default_value} (default)"));
-                }
-            }
-        }
-
-        Ok(result)
+        Config::get_field_paths()
+            .into_iter()
+            .map(|path| {
+                let value = self
+                    .get_user_configured_value(&path)?
+                    .or_else(|| {
+                        default_config
+                            .get_field_value(&path)
+                            .ok()
+                            .map(|v| format!("{v} (default)"))
+                    })
+                    .unwrap_or_else(|| "Unknown".to_string());
+                Ok((path, value))
+            })
+            .collect::<Result<BTreeMap<_, _>>>()
     }
 
-    /// Get a user-configured value (from config file or env vars), returns None if using default
+    /// Get a user-configured value (from config file or env vars), returns None
+    /// if using default
     fn get_user_configured_value(&self, key: &str) -> Result<Option<String>> {
         // First check config file
         if Path::new(&self.config_path).exists() {
             let content = fs::read_to_string(&self.config_path)
                 .with_context(|| format!("Failed to read config file: {}", self.config_path))?;
 
-            if let Ok(doc) = content.parse::<DocumentMut>() {
-                if let Some(value) = self.get_value_from_document(&doc, key) {
-                    return Ok(Some(value));
-                }
+            let config_value = content
+                .parse::<DocumentMut>()
+                .ok()
+                .and_then(|doc| self.get_value_from_file(&doc, key));
+
+            if let Some(value) = config_value {
+                return Ok(Some(value));
             }
         }
 
@@ -156,31 +142,25 @@ impl ConfigManager {
             .map_or(env!("CARGO_PKG_NAME"), |(name, _)| name)
             .to_uppercase();
         let env_var = format!("{pkg_name}_{}", key.replace('.', "__").to_uppercase());
-        
-        if let Ok(env_value) = std::env::var(&env_var) {
-            return Ok(Some(env_value));
-        }
 
-        Ok(None)
+        Ok(std::env::var(&env_var).ok())
     }
 
-    fn load_current_config(&self) -> Result<Config> {
+    /// Get the effective configuration (for completion and runtime use)
+    pub fn get_effective_config(&self) -> Result<Config> {
         Config::new()
     }
 
-    fn set_value_in_document(&self, doc: &mut DocumentMut, key: &str, value: &str) -> Result<()> {
-        let parts: Vec<&str> = key.split('.').collect();
+    fn set_value_in_file(&self, doc: &mut DocumentMut, key: &str, value: &str) -> Result<()> {
+        let parts = key.split('.').collect::<Vec<_>>();
 
-        if parts.len() != 2 {
-            return Err(anyhow::anyhow!("Invalid configuration key format: {key}"));
-        }
-
-        let section = parts[0];
-        let field = parts[1];
+        let &[section, field] = parts.as_slice() else {
+            anyhow::bail!("Invalid configuration key format: {key}");
+        };
 
         // Validate using reflection
         if !Config::is_valid_path(key) {
-            return Err(anyhow::anyhow!("Invalid configuration key: {key}"));
+            anyhow::bail!("Invalid configuration key: {key}");
         }
 
         if !doc.contains_key(section) {
@@ -198,15 +178,12 @@ impl ConfigManager {
         Ok(())
     }
 
-    fn get_value_from_document(&self, doc: &DocumentMut, key: &str) -> Option<String> {
-        let parts: Vec<&str> = key.split('.').collect();
+    fn get_value_from_file(&self, doc: &DocumentMut, key: &str) -> Option<String> {
+        let parts = key.split('.').collect::<Vec<_>>();
 
-        if parts.len() != 2 {
+        let &[section, field] = parts.as_slice() else {
             return None;
-        }
-
-        let section = parts[0];
-        let field = parts[1];
+        };
 
         doc.get(section)?
             .as_table()?
@@ -230,24 +207,21 @@ impl ConfigManager {
             })
     }
 
-    fn remove_value_from_document(&self, doc: &mut DocumentMut, key: &str) -> Result<()> {
-        let parts: Vec<&str> = key.split('.').collect();
+    fn remove_value_from_file(&self, doc: &mut DocumentMut, key: &str) -> Result<()> {
+        let parts = key.split('.').collect::<Vec<_>>();
 
-        if parts.len() != 2 {
-            return Err(anyhow::anyhow!("Invalid configuration key format: {key}"));
-        }
+        let &[section, field] = parts.as_slice() else {
+            anyhow::bail!("Invalid configuration key format: {key}");
+        };
 
-        let section = parts[0];
-        let field = parts[1];
+        if let Some(section_item) = doc.get_mut(section)
+            && let Some(table) = section_item.as_table_mut()
+        {
+            table.remove(field);
 
-        if let Some(section_item) = doc.get_mut(section) {
-            if let Some(table) = section_item.as_table_mut() {
-                table.remove(field);
-                
-                // If the section is now empty, remove it entirely
-                if table.is_empty() {
-                    doc.remove(section);
-                }
+            // If the section is now empty, remove it entirely
+            if table.is_empty() {
+                doc.remove(section);
             }
         }
 
@@ -300,27 +274,12 @@ mod tests {
     fn test_list_config_values() {
         let manager = ConfigManager::new().unwrap();
 
-        let result = manager.list_config_values(false);
+        let result = manager.list_config_values();
         assert!(result.is_ok());
 
         let values = result.unwrap();
         assert!(!values.is_empty());
         assert!(values.contains_key("git.username"));
         assert!(values.contains_key("path.root_dir"));
-    }
-
-    #[test]
-    fn test_list_config_keys_only() {
-        let manager = ConfigManager::new().unwrap();
-
-        let result = manager.list_config_values(true);
-        assert!(result.is_ok());
-
-        let values = result.unwrap();
-        assert!(!values.is_empty());
-
-        for (_, value) in values {
-            assert!(value.is_empty());
-        }
     }
 }
