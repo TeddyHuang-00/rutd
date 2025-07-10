@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use anyhow::Result;
 use colored::Colorize;
 use comfy_table::{Cell, CellAlignment, ContentArrangement, Row, Table};
@@ -201,6 +203,23 @@ impl Display for DisplayManager {
                 "Time spent",
                 &format!("{hours}h {minutes}m {seconds}s"),
             ]);
+        }
+
+        println!("{table}");
+    }
+}
+
+impl DisplayManager {
+    /// Display configuration values
+    pub fn show_config_values(&self, values: &BTreeMap<String, String>) {
+        let mut table = Table::new();
+        table
+            .load_preset(comfy_table::presets::UTF8_FULL)
+            .apply_modifier(comfy_table::modifiers::UTF8_ROUND_CORNERS);
+
+        table.set_header(vec!["Configuration Key", "Value"]);
+        for (key, value) in values {
+            table.add_row(vec![key, value]);
         }
 
         println!("{table}");

@@ -1,6 +1,8 @@
 pub mod git;
 pub mod logging;
+pub mod manager;
 pub mod path;
+pub mod reflection;
 pub mod task;
 
 use anyhow::Result;
@@ -10,7 +12,9 @@ use figment::{
 };
 pub use git::GitConfig;
 pub use logging::LogConfig;
+pub use manager::ConfigManager;
 pub use path::PathConfig;
+pub use reflection::ConfigReflection;
 use serde::{Deserialize, Serialize};
 pub use task::TaskConfig;
 

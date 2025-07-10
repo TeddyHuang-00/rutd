@@ -6,8 +6,8 @@ use std::process::ExitCode;
 
 use clap::{CommandFactory, Parser};
 use clap_complete::CompleteEnv;
-use cli::{Cli, Commands, DisplayManager};
-use rutd_core::{Config, Display, SortOptions, TaskManager};
+use cli::{Cli, Commands, DisplayManager, commands::ConfigCommands};
+use rutd_core::{Config, Display, SortOptions, TaskManager, config::ConfigManager};
 
 pub fn app() -> ExitCode {
     // Check if we're being called for completion generation
@@ -226,6 +226,88 @@ pub fn app() -> ExitCode {
                 .is_err()
             {
                 return ExitCode::FAILURE;
+            }
+        }
+        Commands::Config { command } => {
+            log::trace!("Config command");
+
+            // Create a config manager
+            let Ok(config_manager) = ConfigManager::new().inspect_err(|e| {
+                display_manager.show_failure(&format!("Failed to create config manager: {e}"))
+            }) else {
+                return ExitCode::FAILURE;
+            };
+
+            match command {
+                ConfigCommands::Get { key } => {
+                    log::trace!("Get config value for key: {key}");
+
+                    if config_manager
+                        .get_config_value(&key)
+                        .inspect(|value| println!("{value}"))
+                        .inspect_err(|e| {
+                            display_manager
+                                .show_failure(&format!("Failed to get config value: {e}"))
+                        })
+                        .is_err()
+                    {
+                        return ExitCode::FAILURE;
+                    }
+                }
+                ConfigCommands::Set { key, value } => {
+                    log::trace!("Set config value for key: {key}");
+
+                    if config_manager
+                        .set_config_value(&key, &value)
+                        .inspect(|_| display_manager.show_success(&format!("Set {key} = {value}")))
+                        .inspect_err(|e| {
+                            display_manager
+                                .show_failure(&format!("Failed to set config value: {e}"))
+                        })
+                        .is_err()
+                    {
+                        return ExitCode::FAILURE;
+                    }
+                }
+                ConfigCommands::Show => {
+                    log::trace!("Show all config values");
+
+                    if config_manager
+                        .list_config_values()
+                        .inspect(|values| {
+                            if values.is_empty() {
+                                display_manager.show_success("No configuration values found")
+                            } else {
+                                display_manager.show_config_values(values);
+                            }
+                        })
+                        .inspect_err(|e| {
+                            display_manager
+                                .show_failure(&format!("Failed to list config values: {e}"))
+                        })
+                        .is_err()
+                    {
+                        return ExitCode::FAILURE;
+                    }
+                }
+                ConfigCommands::Unset { key } => {
+                    log::trace!("Unset config value: {key}");
+
+                    if config_manager
+                        .unset_config_value(&key)
+                        .inspect(|_| {
+                            display_manager
+                                .show_success(&format!("Configuration key '{key}' removed"));
+                        })
+                        .inspect_err(|e| {
+                            display_manager
+                                .show_failure(&format!("Failed to unset config value: {e}"))
+                        })
+                        .is_err()
+                    {
+                        return ExitCode::FAILURE;
+                    }
+                }
             }
         }
     }
