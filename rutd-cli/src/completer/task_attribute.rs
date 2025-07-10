@@ -46,6 +46,8 @@ pub fn complete_id(current: &OsStr) -> Vec<CompletionCandidate> {
     context
         .tasks
         .into_iter()
+        // Filter by status if provided
+        .filter(|task| task.status == TaskStatus::Todo)
         // Keep only those that start with the current prefix
         .filter(|task| task.id.starts_with(current))
         // Convert to completion candidates
@@ -159,14 +161,19 @@ mod tests {
     use super::*;
 
     // Helper function to create a test task
-    fn create_test_task(id: &str, scope: Option<&str>, task_type: Option<&str>) -> Task {
+    fn create_test_task(
+        id: &str,
+        scope: Option<&str>,
+        task_type: Option<&str>,
+        status: TaskStatus,
+    ) -> Task {
         Task {
             id: id.to_string(),
             description: format!("Test task {id}"),
             priority: Priority::Normal,
             scope: scope.map(|s| s.to_string()),
             task_type: task_type.map(|t| t.to_string()),
-            status: TaskStatus::Todo,
+            status,
             created_at: "2023-01-01T12:00:00+00:00".to_string(),
             updated_at: None,
             completed_at: None,
@@ -179,10 +186,15 @@ mod tests {
         std::fs::create_dir_all(task_dir).unwrap();
 
         let tasks = [
-            create_test_task("task-123", Some("project"), Some("feat")),
-            create_test_task("task-456", Some("feature"), Some("bug")),
-            create_test_task("task-789", Some("other"), Some("docs")),
-            create_test_task("other-task", None, None),
+            create_test_task("task-123", Some("project"), Some("feat"), TaskStatus::Todo),
+            create_test_task(
+                "task-456",
+                Some("feature"),
+                Some("bug"),
+                TaskStatus::Aborted,
+            ),
+            create_test_task("task-789", Some("other"), Some("docs"), TaskStatus::Done),
+            create_test_task("other-task", None, None, TaskStatus::Todo),
         ];
 
         for task in &tasks {
@@ -245,7 +257,12 @@ mod tests {
         let task_dir = temp_dir.path().join("tasks");
 
         // Create a task with a long ID
-        let long_id_task = create_test_task("longid12345", Some("test"), Some("truncation"));
+        let long_id_task = create_test_task(
+            "longid12345",
+            Some("test"),
+            Some("truncation"),
+            TaskStatus::Todo,
+        );
         let file_path = task_dir.join(format!("{}.toml", long_id_task.id));
         let toml_string = toml::to_string(&long_id_task).unwrap();
         let mut file = File::create(file_path).unwrap();
@@ -303,11 +320,11 @@ mod tests {
 
         // Test with empty prefix
         let completions = complete_id(OsStr::new(""));
-        assert_eq!(completions.len(), 4);
+        assert_eq!(completions.len(), 2);
 
         // Test with specific prefix
         let completions = complete_id(OsStr::new("task-"));
-        assert_eq!(completions.len(), 3);
+        assert_eq!(completions.len(), 1);
 
         // Test with more specific prefix
         let completions = complete_id(OsStr::new("task-1"));
