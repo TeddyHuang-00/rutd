@@ -105,12 +105,19 @@ pub fn app() -> ExitCode {
             }
         }
         Commands::Done { id } => {
-            log::trace!("Mark task {id} as completed");
+            let id = id
+                .inspect(|id| {
+                    log::trace!("Mark task {id:?} as completed");
+                })
+                .or_else(|| {
+                    log::trace!("Mark active task as completed");
+                    None
+                });
 
             // Use TaskManager to mark task as completed
             if task_manager
-                .mark_task_done(&id)
-                .inspect(|_| display_manager.show_success(&format!("Task {id} marked as done")))
+                .finish_task(id.as_deref())
+                .inspect(|id| display_manager.show_success(&format!("Task {id} marked as done")))
                 .inspect_err(|e| {
                     display_manager.show_failure(&format!("Fail to mark task as done: {e}"))
                 })
@@ -170,7 +177,7 @@ pub fn app() -> ExitCode {
 
             // Use TaskManager to abort a task
             if task_manager
-                .abort_task(&id)
+                .abort_task(id.as_deref())
                 .inspect(|id| display_manager.show_success(&format!("Aborted task {id}")))
                 .inspect_err(|e| display_manager.show_failure(&format!("Fail to abort task: {e}")))
                 .is_err()

@@ -80,9 +80,9 @@ pub enum Commands {
     /// Mark the task with the specified ID as completed
     #[command(visible_aliases = ["d", "f"])]
     Done {
-        /// Task ID
+        /// Task ID, if not specified, finish the active task
         #[arg(add = ArgValueCompleter::new(completer::complete_id))]
-        id: String,
+        id: Option<String>,
     },
     /// Edit task description
     ///
@@ -270,7 +270,7 @@ mod tests {
         let cli = result.unwrap();
         match cli.command {
             Commands::Done { id } => {
-                assert_eq!(id, "1a2b3c");
+                assert_eq!(id, Some("1a2b3c".to_string()));
             }
             _ => panic!("Should have parsed as done command"),
         }
