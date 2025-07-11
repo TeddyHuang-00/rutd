@@ -21,16 +21,25 @@ impl ConfigManager {
         Ok(Self { config_path })
     }
 
-    pub fn get_config_value(&self, key: &str) -> Result<String> {
-        // Validate the key using reflection
+    fn read_config_file(&self) -> Result<String> {
+        fs::read_to_string(&self.config_path)
+            .with_context(|| format!("Failed to read config file: {}", self.config_path))
+    }
+
+    fn validate_config_key(&self, key: &str) -> Result<()> {
         if !Config::is_valid_path(key) {
             anyhow::bail!("Invalid configuration key: {key}");
         }
+        Ok(())
+    }
+
+    pub fn get_config_value(&self, key: &str) -> Result<String> {
+        // Validate the key using reflection
+        self.validate_config_key(key)?;
 
         // First try to get from the config file if it exists
         if Path::new(&self.config_path).exists() {
-            let content = fs::read_to_string(&self.config_path)
-                .with_context(|| format!("Failed to read config file: {}", self.config_path))?;
+            let content = self.read_config_file()?;
 
             if let Ok(doc) = content.parse::<DocumentMut>()
                 && let Some(value) = self.get_value_from_file(&doc, key)
@@ -54,8 +63,7 @@ impl ConfigManager {
         })?;
 
         let mut doc = if Path::new(&self.config_path).exists() {
-            let content = fs::read_to_string(&self.config_path)
-                .with_context(|| format!("Failed to read config file: {}", self.config_path))?;
+            let content = self.read_config_file()?;
             content
                 .parse::<DocumentMut>()
                 .with_context(|| format!("Failed to parse config file: {}", self.config_path))?
@@ -73,17 +81,14 @@ impl ConfigManager {
 
     pub fn unset_config_value(&self, key: &str) -> Result<()> {
         // Validate the key using reflection
-        if !Config::is_valid_path(key) {
-            anyhow::bail!("Invalid configuration key: {key}");
-        }
+        self.validate_config_key(key)?;
 
         // If config file doesn't exist, there's nothing to unset
         if !Path::new(&self.config_path).exists() {
             return Ok(());
         }
 
-        let content = fs::read_to_string(&self.config_path)
-            .with_context(|| format!("Failed to read config file: {}", self.config_path))?;
+        let content = self.read_config_file()?;
 
         let mut doc = content
             .parse::<DocumentMut>()
@@ -123,8 +128,7 @@ impl ConfigManager {
     fn get_user_configured_value(&self, key: &str) -> Result<Option<String>> {
         // First check config file
         if Path::new(&self.config_path).exists() {
-            let content = fs::read_to_string(&self.config_path)
-                .with_context(|| format!("Failed to read config file: {}", self.config_path))?;
+            let content = self.read_config_file()?;
 
             let config_value = content
                 .parse::<DocumentMut>()
@@ -159,9 +163,7 @@ impl ConfigManager {
         };
 
         // Validate using reflection
-        if !Config::is_valid_path(key) {
-            anyhow::bail!("Invalid configuration key: {key}");
-        }
+        self.validate_config_key(key)?;
 
         if !doc.contains_key(section) {
             doc[section] = Item::Table(Table::new());
