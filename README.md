@@ -154,6 +154,7 @@ RuTD draws inspiration from:
 
 And the development process heavily relies on LLM tools. Huge shout out to:
 
+- [Claude Code](https://www.anthropic.com/claude-code)
 - [Roo Code](https://roocode.com/)
 - [GitHub Copilot](https://github.com/features/copilot)
 - [Claude AI](https://claude.ai/)
