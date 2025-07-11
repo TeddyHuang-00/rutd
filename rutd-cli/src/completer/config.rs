@@ -3,9 +3,11 @@ use std::ffi::OsStr;
 use clap_complete::CompletionCandidate;
 use rutd_core::config::{Config, ConfigReflection};
 
+use super::utils::validate_utf8_or_empty;
+
 /// Complete configuration keys for get and set commands
 pub fn complete_config_key(current: &OsStr) -> Vec<CompletionCandidate> {
-    let Some(current_str) = current.to_str() else {
+    let Some(current_str) = validate_utf8_or_empty(current) else {
         return vec![];
     };
 

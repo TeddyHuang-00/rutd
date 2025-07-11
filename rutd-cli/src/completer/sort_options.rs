@@ -5,9 +5,11 @@ use clap_complete::CompletionCandidate;
 use rutd_core::{SortCriteria, SortOrder};
 use strum::{EnumMessage, IntoEnumIterator};
 
+use super::utils::validate_utf8_or_empty;
+
 /// Get possible order options as completion candidates
 pub fn complete_sort_options(current: &OsStr) -> Vec<CompletionCandidate> {
-    let Some(current) = current.to_str() else {
+    let Some(current) = validate_utf8_or_empty(current) else {
         return vec![];
     };
 

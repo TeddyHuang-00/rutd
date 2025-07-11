@@ -2,6 +2,7 @@ pub mod config;
 pub mod merge_strategy;
 pub mod sort_options;
 pub mod task_attribute;
+pub mod utils;
 
 pub use config::complete_config_key;
 pub use merge_strategy::complete_merge_strategy;

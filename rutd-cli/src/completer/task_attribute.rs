@@ -9,6 +9,8 @@ use rutd_core::{
 };
 use strum::{EnumMessage, IntoEnumIterator};
 
+use super::utils::validate_utf8_or_empty;
+
 /// Completion context that holds config and tasks to avoid repeated loading
 struct CompletionContext {
     config: Config,
@@ -35,7 +37,7 @@ fn get_tasks(task_dir: &Path) -> Vec<Task> {
 
 /// Get a list of task IDs as completion candidates
 pub fn complete_id(current: &OsStr) -> Vec<CompletionCandidate> {
-    let Some(current) = current.to_str() else {
+    let Some(current) = validate_utf8_or_empty(current) else {
         return vec![];
     };
 
@@ -62,7 +64,7 @@ pub fn complete_id(current: &OsStr) -> Vec<CompletionCandidate> {
 
 /// Get a list of scopes as completion candidates
 pub fn complete_scope(current: &OsStr) -> Vec<CompletionCandidate> {
-    let Some(current) = current.to_str() else {
+    let Some(current) = validate_utf8_or_empty(current) else {
         return vec![];
     };
 
@@ -89,7 +91,7 @@ pub fn complete_scope(current: &OsStr) -> Vec<CompletionCandidate> {
 
 /// Get a list of task types as completion candidates
 pub fn complete_type(current: &OsStr) -> Vec<CompletionCandidate> {
-    let Some(current) = current.to_str() else {
+    let Some(current) = validate_utf8_or_empty(current) else {
         return vec![];
     };
 
@@ -115,7 +117,7 @@ pub fn complete_type(current: &OsStr) -> Vec<CompletionCandidate> {
 }
 
 pub fn complete_priority(current: &OsStr) -> Vec<CompletionCandidate> {
-    let Some(current) = current.to_str() else {
+    let Some(current) = validate_utf8_or_empty(current) else {
         return vec![];
     };
 
@@ -133,7 +135,7 @@ pub fn complete_priority(current: &OsStr) -> Vec<CompletionCandidate> {
 }
 
 pub fn complete_status(current: &OsStr) -> Vec<CompletionCandidate> {
-    let Some(current) = current.to_str() else {
+    let Some(current) = validate_utf8_or_empty(current) else {
         return vec![];
     };
 
