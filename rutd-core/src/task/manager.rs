@@ -7,7 +7,7 @@ use super::{
     SortOptions,
     active_task::{self, ActiveTask},
     filter::{DateRange, Filter},
-    model::{Priority, Task, TaskStatus},
+    model::{Priority, Task},
     sort_tasks, storage,
 };
 use crate::{
@@ -36,70 +36,45 @@ impl TaskManager {
 
     /// Check if a task matches the filter conditions
     fn matches_filters(task: &Task, filter_options: &Filter) -> bool {
-        // Check basic filters
-        if let Some(p) = &filter_options.priority {
-            if task.priority != *p {
-                return false;
-            }
-        }
-        if let Some(s) = &filter_options.task_scope {
-            if task.scope.as_deref() != Some(s) {
-                return false;
-            }
-        }
-        if let (Some(t), Some(task_type)) = (&filter_options.task_type, &task.task_type) {
-            if task_type != t {
-                return false;
-            }
-        }
-        if let Some(st) = &filter_options.status {
-            if task.status != *st {
-                return false;
-            }
-        }
-
-        // Check creation time
-        if let Some(date_range) = &filter_options.creation_time {
-            // Check creation date against date range
-            if !Self::is_time_in_range(&task.created_at, date_range) {
-                return false;
-            }
-        }
-
-        // Check update time
-        if let Some(date_range) = &filter_options.update_time {
-            // Check if the task has been updated, if not, use created_at
-            let updated_at = task.updated_at.as_deref().unwrap_or(&task.created_at);
-            // Check update date against date range
-            if !Self::is_time_in_range(updated_at, date_range) {
-                return false;
-            }
-        }
-
-        // Check completion time
-        if let Some(date_range) = &filter_options.completion_time {
-            // Check if the task is completed
-            let Some(completed_at) = &task.completed_at else {
-                return false;
-            };
-
-            // Check completion date against date range
-            if !Self::is_time_in_range(completed_at, date_range) {
-                return false;
-            }
-        }
-
-        // Check fuzzy matching on description
-        if let Some(query) = &filter_options.fuzzy {
-            if !query.is_empty() {
-                let matcher = SkimMatcherV2::default();
-                if matcher.fuzzy_match(&task.description, query).is_none() {
-                    return false;
-                }
-            }
-        }
-
-        true
+        // Match priority
+        filter_options.priority.is_none_or(|p| task.priority == p)
+            // Match status
+            && filter_options.status.is_none_or(|s| task.status == s)
+            // Match task scope
+            && filter_options
+                .task_scope
+                .as_ref()
+                .is_none_or(|s| task.scope.as_ref() == Some(s))
+            // Match task type
+            && filter_options
+                .task_type
+                .as_ref()
+                .is_none_or(|t| task.task_type.as_ref() == Some(t))
+            // Match creation time in range
+            && filter_options
+                .creation_time
+                .as_ref()
+                .is_none_or(|range| Self::is_time_in_range(&task.created_at, range))
+            // Match update/creation time in range
+            && filter_options.update_time.as_ref().is_none_or(|range| {
+                Self::is_time_in_range(
+                    task.updated_at.as_deref().unwrap_or(&task.created_at),
+                    range,
+                )
+            })
+            // Match completion time in range
+            && filter_options.completion_time.as_ref().is_none_or(|range| {
+                task.completed_at
+                    .as_ref()
+                    .is_some_and(|completed_at| Self::is_time_in_range(completed_at, range))
+            })
+            // Match description using fuzzy matching
+            && filter_options.fuzzy.as_ref().is_none_or(|q| {
+                q.is_empty()
+                    || SkimMatcherV2::default()
+                        .fuzzy_match(&task.description, q)
+                        .is_some()
+            })
     }
 }
 
@@ -151,51 +126,36 @@ impl TaskManager {
             .collect::<Vec<Task>>();
 
         // Sort tasks if sort options are provided
-        let Some(sort_options) = sort_options else {
-            return Ok(filtered_tasks);
+        if let Some(sort_options) = sort_options {
+            sort_tasks(&mut filtered_tasks, sort_options);
         };
-        sort_tasks(&mut filtered_tasks, sort_options);
 
         Ok(filtered_tasks)
     }
 
     /// Mark a task as completed
-    pub fn mark_task_done(&self, task_id: &str) -> Result<()> {
-        let mut task = storage::load_task(&self.path_config.task_dir_path(), task_id)?;
-
-        // Check if the task is already done
-        if task.status == TaskStatus::Done {
-            anyhow::bail!("Task is already completed");
-        }
-
-        // Check if this is the active task
-        let is_active_task =
-            match active_task::load_active_task(&self.path_config.active_task_file_path())? {
-                Some(active) => {
-                    if active.task_id == task_id {
-                        // Calculate time spent using the active task record
-                        let started_time = DateTime::parse_from_rfc3339(&active.started_at)
-                            .context("Failed to parse started_at time from active task record")?;
-                        let now = Local::now();
-                        let duration =
-                            now.signed_duration_since(started_time.with_timezone(&Local));
-
-                        // Calculate total seconds spent
-                        let seconds_spent = duration.num_seconds().max(0) as u64;
-
-                        // Add to existing time_spent or initialize it
-                        task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
-
-                        true
-                    } else {
-                        false
-                    }
-                }
-                None => false,
-            };
+    pub fn finish_task(&self, task_id: Option<&str>) -> Result<String> {
+        let task_id = match (
+            task_id.map(|id| id.to_string()),
+            active_task::load_active_task(&self.path_config.active_task_file_path())?,
+        ) {
+            // Stop the task first if matching active task
+            (Some(task_id), Some(active_task)) if task_id == active_task.task_id => {
+                self.stop_task()?;
+                log::debug!("Stopped active task before marking as done: {task_id}");
+                task_id
+            }
+            // Use provided task ID
+            (Some(task_id), _) => task_id,
+            // Fall back to active task if no ID provided
+            (None, Some(active_task)) => active_task.task_id,
+            // Raise an error if neither provided nor active task found
+            (None, None) => anyhow::bail!("No task ID provided and no active task found"),
+        };
+        let mut task = storage::load_task(&self.path_config.task_dir_path(), &task_id)?;
 
         // Update task status and timestamps
-        task.status = TaskStatus::Done;
+        task.status = task.status.done()?;
         task.updated_at = Some(Local::now().to_rfc3339());
         task.completed_at = Some(Local::now().to_rfc3339());
 
@@ -207,42 +167,34 @@ impl TaskManager {
             "Mark task as done",
         )?;
 
-        // If this was the active task, clear the active task record
-        if is_active_task {
-            active_task::clear_active_task(&self.path_config.active_task_file_path())?;
-            log::debug!("Completed active task: {task_id} and cleared active task file");
-        } else {
-            log::debug!("Completed task: {task_id}");
-        }
+        log::debug!("Completed task: {task_id}");
 
-        Ok(())
+        Ok(task_id)
     }
 
     /// Start working on a task
     pub fn start_task(&self, task_id: &str) -> Result<String> {
-        // Check if there is already an active task
-        if let Some(active) =
-            active_task::load_active_task(&self.path_config.active_task_file_path())?
-        {
-            let active_task_obj =
-                storage::load_task(&self.path_config.task_dir_path(), &active.task_id)?;
-            anyhow::bail!(
-                "There's already an active task: {} - {}. Stop it first.",
-                active.task_id,
-                active_task_obj.description
-            )
-        }
-
-        // Load task
         let task = storage::load_task(&self.path_config.task_dir_path(), task_id)?;
 
-        // Check if task is already completed or aborted
-        if task.status == TaskStatus::Done {
-            anyhow::bail!("Cannot start a completed task")
+        // Check if there is already an active task
+        match active_task::load_active_task(&self.path_config.active_task_file_path())? {
+            Some(active) if active.task_id == task_id => {
+                // If the task is already active, return an error
+                anyhow::bail!("Task {task_id} is already active.")
+            }
+            Some(active) => {
+                // If there's an active task, stop it first
+                self.stop_task()?;
+                log::debug!(
+                    "Stopped active task {} before starting a new task: {task_id}",
+                    active.task_id
+                );
+            }
+            None => {}
         }
-        if task.status == TaskStatus::Aborted {
-            anyhow::bail!("Cannot start an aborted task")
-        }
+
+        // Try setting status to start
+        task.status.start()?;
 
         // Get current time
         let now = Local::now().to_rfc3339();
@@ -303,52 +255,28 @@ impl TaskManager {
     }
 
     /// Mark a task as aborted
-    pub fn abort_task(&self, task_id: &Option<String>) -> Result<String> {
-        let task_id = match task_id {
-            Some(task_id) => task_id.to_owned(),
-            None => {
-                // Load the active task if no ID is provided
-                let Some(active_task) =
-                    active_task::load_active_task(&self.path_config.active_task_file_path())?
-                else {
-                    anyhow::bail!("No active task found");
-                };
-                active_task.task_id
+    pub fn abort_task(&self, task_id: Option<&str>) -> Result<String> {
+        let task_id = match (
+            task_id.map(|id| id.to_string()),
+            active_task::load_active_task(&self.path_config.active_task_file_path())?,
+        ) {
+            // Stop the task first if matching active task
+            (Some(task_id), Some(active_task)) if task_id == active_task.task_id => {
+                self.stop_task()?;
+                log::debug!("Stopped active task before marking as done: {task_id}");
+                task_id
             }
+            // Use provided task ID
+            (Some(task_id), _) => task_id,
+            // Fall back to active task if no ID provided
+            (None, Some(active_task)) => active_task.task_id,
+            // Raise an error if neither provided nor active task found
+            (None, None) => anyhow::bail!("No task ID provided and no active task found"),
         };
         let mut task = storage::load_task(&self.path_config.task_dir_path(), &task_id)?;
 
-        // Check if the task is already done or aborted
-        if task.status == TaskStatus::Done {
-            anyhow::bail!("Cannot abort a completed task");
-        }
-        if task.status == TaskStatus::Aborted {
-            anyhow::bail!("Task is already aborted");
-        }
-
-        // Check if this is the active task
-        let is_active_task =
-            match active_task::load_active_task(&self.path_config.active_task_file_path())? {
-                Some(active) if active.task_id == task_id => {
-                    // Calculate time spent using the active task record
-                    let started_time = DateTime::parse_from_rfc3339(&active.started_at)
-                        .context("Failed to parse started_at time from active task record")?;
-                    let now = Local::now();
-                    let duration = now.signed_duration_since(started_time.with_timezone(&Local));
-
-                    // Calculate total seconds spent
-                    let seconds_spent = duration.num_seconds().max(0) as u64;
-
-                    // Add to existing time_spent or initialize it
-                    task.time_spent = Some(task.time_spent.unwrap_or(0) + seconds_spent);
-
-                    true
-                }
-                _ => false,
-            };
-
         // Update task status and timestamps
-        task.status = TaskStatus::Aborted;
+        task.status = task.status.aborted()?;
         task.updated_at = Some(Local::now().to_rfc3339());
         task.completed_at = Some(Local::now().to_rfc3339());
 
@@ -360,13 +288,7 @@ impl TaskManager {
             "Cancel task",
         )?;
 
-        // If this was the active task, clear the active task record
-        if is_active_task {
-            active_task::clear_active_task(&self.path_config.active_task_file_path())?;
-            log::debug!("Aborted active task: {task_id} and cleared active task file");
-        } else {
-            log::debug!("Aborted task: {task_id}");
-        }
+        log::debug!("Aborted task: {task_id}");
 
         Ok(task_id)
     }
@@ -590,9 +512,9 @@ mod tests {
         let task_dir = task_manager.path_config.task_dir_path();
         fs::create_dir_all(&task_dir).unwrap();
 
-        let task_id = "test-complete";
+        let task_id = "test-complete".to_string();
         let task = Task {
-            id: task_id.to_string(),
+            id: task_id.clone(),
             description: "Test task".to_string(),
             priority: Priority::Normal,
             scope: None,
@@ -608,7 +530,7 @@ mod tests {
         fs::write(&file_path, toml::to_string(&task).unwrap()).unwrap();
 
         // Mark the task as done
-        let result = task_manager.mark_task_done(task_id);
+        let result = task_manager.finish_task(Some(&task_id));
 
         // The function might fail due to git operations, but check that the file was
         // updated
@@ -697,7 +619,7 @@ mod tests {
         fs::write(&file_path, toml::to_string(&task).unwrap()).unwrap();
 
         // Abort the task with specific ID
-        let result = task_manager.abort_task(&Some(task_id.to_string()));
+        let result = task_manager.abort_task(Some(task_id));
 
         // Check that the task was aborted
         if result.is_ok() {
@@ -885,32 +807,42 @@ mod tests {
         .unwrap();
 
         // Edge case 1: Mark already done task as done
-        let result = task_manager.mark_task_done(&done_task.id);
+        let result = task_manager.finish_task(Some(&done_task.id));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("already done"));
+
+        // Edge case 2: Start already done task
+        let result = task_manager.start_task(&done_task.id);
         assert!(result.is_err());
         assert!(
             result
                 .unwrap_err()
                 .to_string()
-                .contains("already completed")
+                .contains("done and cannot be started")
         );
-
-        // Edge case 2: Start already done task
-        let result = task_manager.start_task(&done_task.id);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("completed task"));
 
         // Edge case 3: Start already aborted task
         let result = task_manager.start_task(&aborted_task.id);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("aborted task"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("aborted and cannot be started")
+        );
 
         // Edge case 4: Abort already done task
-        let result = task_manager.abort_task(&Some(done_task.id));
+        let result = task_manager.abort_task(Some(&done_task.id));
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("completed task"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("done and cannot be aborted")
+        );
 
         // Edge case 5: Abort already aborted task
-        let result = task_manager.abort_task(&Some(aborted_task.id));
+        let result = task_manager.abort_task(Some(&aborted_task.id));
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("already aborted"));
     }
@@ -1072,41 +1004,44 @@ mod tests {
         let second_file_path = task_dir.join(format!("{}.toml", second_task.id));
         fs::write(&second_file_path, toml::to_string(&second_task).unwrap()).unwrap();
 
+        // With the new behavior, starting a second task should succeed and
+        // automatically stop the first
         let start_second_result = task_manager.start_task(second_task_id);
-        assert!(start_second_result.is_err());
-        assert!(
-            start_second_result
-                .unwrap_err()
-                .to_string()
-                .contains("already an active task")
-        );
+        assert!(start_second_result.is_ok());
 
-        // Verify that completing a task clears the active task state
-        let complete_result = task_manager.mark_task_done(task_id);
+        // Verify that the active task is now the second task
+        let active_task =
+            active_task::load_active_task(&task_manager.path_config.active_task_file_path())
+                .unwrap();
+        assert!(active_task.is_some());
+        assert_eq!(active_task.unwrap().task_id, second_task_id);
+
+        // Verify that completing the active task clears the active task state
+        let complete_result = task_manager.finish_task(Some(second_task_id));
         assert!(complete_result.is_ok());
 
         // The active task file should no longer exist
         let active_task_file = task_manager.path_config.active_task_file_path();
         assert!(!active_task_file.exists());
 
-        // We should now be able to start a different task
-        let restart_result = task_manager.start_task(second_task_id);
+        // We should now be able to start the first task again
+        let restart_result = task_manager.start_task(task_id);
         assert!(restart_result.is_ok());
 
         // Test that stopping a task updates the time spent
         // First read the current task to get its starting time_spent
-        let content = fs::read_to_string(&second_file_path).unwrap();
-        let second_task: Task = toml::from_str(&content).unwrap();
-        assert!(second_task.time_spent.is_none()); // Should be None initially
+        let content = fs::read_to_string(&file_path).unwrap();
+        let current_task: Task = toml::from_str(&content).unwrap();
+        let initial_time_spent = current_task.time_spent.unwrap_or(0);
 
         // Stop the task
         let stop_result = task_manager.stop_task();
         assert!(stop_result.is_ok());
 
         // Check that time_spent was updated
-        let content = fs::read_to_string(&second_file_path).unwrap();
+        let content = fs::read_to_string(&file_path).unwrap();
         let updated_task: Task = toml::from_str(&content).unwrap();
-        assert!(updated_task.time_spent.is_some()); // Should now have some value
+        assert!(updated_task.time_spent.unwrap() >= initial_time_spent); // Should have increased
 
         // Test stopping with no active task
         let stop_nothing_result = task_manager.stop_task();

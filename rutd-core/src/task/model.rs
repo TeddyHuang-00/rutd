@@ -1,5 +1,6 @@
 use std::fmt;
 
+use anyhow::Result;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 use strum::{AsRefStr, EnumIter, EnumMessage, EnumString};
@@ -80,6 +81,35 @@ pub enum TaskStatus {
 impl fmt::Display for TaskStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_ref())
+    }
+}
+
+impl TaskStatus {
+    /// Transition to done
+    pub fn done(self) -> Result<Self> {
+        match self {
+            TaskStatus::Todo => Ok(TaskStatus::Done),
+            TaskStatus::Done => anyhow::bail!("Task is already done."),
+            TaskStatus::Aborted => anyhow::bail!("Task is aborted and cannot be marked done."),
+        }
+    }
+
+    /// Transition to aborted
+    pub fn aborted(self) -> Result<Self> {
+        match self {
+            TaskStatus::Todo => Ok(TaskStatus::Aborted),
+            TaskStatus::Done => anyhow::bail!("Task is done and cannot be aborted."),
+            TaskStatus::Aborted => anyhow::bail!("Task is already aborted."),
+        }
+    }
+
+    /// Transition to start (hidden state)
+    pub fn start(self) -> Result<Self> {
+        match self {
+            TaskStatus::Todo => Ok(TaskStatus::Todo),
+            TaskStatus::Done => anyhow::bail!("Task is done and cannot be started."),
+            TaskStatus::Aborted => anyhow::bail!("Task is aborted and cannot be started."),
+        }
     }
 }
 
