@@ -101,10 +101,10 @@ mod tests {
             .iter()
             .filter(|task| {
                 // Filter by priority
-                if let Some(priority) = filter.priority {
-                    if task.priority != priority {
-                        return false;
-                    }
+                if let Some(priority) = filter.priority
+                    && task.priority != priority
+                {
+                    return false;
                 }
 
                 // Filter by scope
@@ -124,10 +124,10 @@ mod tests {
                 }
 
                 // Filter by status
-                if let Some(status) = filter.status {
-                    if task.status != status {
-                        return false;
-                    }
+                if let Some(status) = filter.status
+                    && task.status != status
+                {
+                    return false;
                 }
 
                 // Filter by creation time
@@ -137,16 +137,16 @@ mod tests {
                         Err(_) => return false, // Skip tasks with invalid dates
                     };
 
-                    if let Some(from) = date_range.from {
-                        if created_at < from {
-                            return false;
-                        }
+                    if let Some(from) = date_range.from
+                        && created_at < from
+                    {
+                        return false;
                     }
 
-                    if let Some(to) = date_range.to {
-                        if created_at >= to {
-                            return false;
-                        }
+                    if let Some(to) = date_range.to
+                        && created_at >= to
+                    {
+                        return false;
                     }
                 }
 
@@ -159,16 +159,16 @@ mod tests {
                                 Err(_) => return false, // Skip tasks with invalid dates
                             };
 
-                            if let Some(from) = date_range.from {
-                                if updated_at < from {
-                                    return false;
-                                }
+                            if let Some(from) = date_range.from
+                                && updated_at < from
+                            {
+                                return false;
                             }
 
-                            if let Some(to) = date_range.to {
-                                if updated_at >= to {
-                                    return false;
-                                }
+                            if let Some(to) = date_range.to
+                                && updated_at >= to
+                            {
+                                return false;
                             }
                         }
                         None => return false, // No update time, doesn't match filter
@@ -185,16 +185,16 @@ mod tests {
                                 Err(_) => return false, // Skip tasks with invalid dates
                             };
 
-                            if let Some(from) = date_range.from {
-                                if completed_at < from {
-                                    return false;
-                                }
+                            if let Some(from) = date_range.from
+                                && completed_at < from
+                            {
+                                return false;
                             }
 
-                            if let Some(to) = date_range.to {
-                                if completed_at >= to {
-                                    return false;
-                                }
+                            if let Some(to) = date_range.to
+                                && completed_at >= to
+                            {
+                                return false;
                             }
                         }
                         None => return false, // No completion time, doesn't match filter
@@ -202,14 +202,13 @@ mod tests {
                 }
 
                 // Filter by fuzzy search
-                if let Some(ref fuzzy) = filter.fuzzy {
-                    if !task
+                if let Some(ref fuzzy) = filter.fuzzy
+                    && !task
                         .description
                         .to_lowercase()
                         .contains(&fuzzy.to_lowercase())
-                    {
-                        return false;
-                    }
+                {
+                    return false;
                 }
 
                 // Task passed all filters

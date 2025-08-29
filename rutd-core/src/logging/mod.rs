@@ -28,13 +28,12 @@ impl FileLogger {
     ) -> Self {
         let file = log_file_path.as_ref().and_then(|path| {
             // Create parent directory if it doesn't exist
-            if let Some(parent) = path.parent() {
-                if !parent.exists() {
-                    if let Err(e) = std::fs::create_dir_all(parent) {
-                        eprintln!("Failed to create log directory: {e}");
-                        return None;
-                    }
-                }
+            if let Some(parent) = path.parent()
+                && !parent.exists()
+                && let Err(e) = std::fs::create_dir_all(parent)
+            {
+                eprintln!("Failed to create log directory: {e}");
+                return None;
             }
 
             // Open log file
@@ -165,10 +164,10 @@ impl Log for FileLogger {
     }
 
     fn flush(&self) {
-        if let Some(file) = &self.file {
-            if let Ok(mut file) = file.lock() {
-                let _ = file.flush();
-            }
+        if let Some(file) = &self.file
+            && let Ok(mut file) = file.lock()
+        {
+            let _ = file.flush();
         }
     }
 }

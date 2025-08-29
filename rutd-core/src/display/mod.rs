@@ -226,8 +226,8 @@ mod tests {
         // Test all show methods
         display.show_success("Success message");
         display.show_failure("Failure message");
-        display.show_tasks_list(&[task.clone()]);
-        display.show_task_stats(&[task.clone()]);
+        display.show_tasks_list(std::slice::from_ref(&task));
+        display.show_task_stats(std::slice::from_ref(&task));
         display.show_task_detail(&task);
 
         // Verify the success message was captured
