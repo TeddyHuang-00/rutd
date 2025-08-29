@@ -28,7 +28,7 @@ clap = { version = "4.4.11", features = ["derive"] }
 clap_complete = { version = "4.5.48", features = ["unstable-dynamic"] }
 colored = "3.0.0"
 comfy-table = "7.1.0"
-dialoguer = "0.11.0"
+dialoguer = "0.12.0"
 figment = { version = "0.10.19", features = ["toml", "env"] }
 fuzzy-matcher = "0.3.7"
 git2 = "0.20.1"
