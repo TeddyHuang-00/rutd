@@ -20,7 +20,7 @@ jobs:
     name: Code Format
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
@@ -32,7 +32,7 @@ jobs:
     name: Clippy Check
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -44,7 +44,7 @@ jobs:
     name: Unit Test
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Run Unit Tests
@@ -79,7 +79,7 @@ jobs:
             feature: default
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Install Cross-Compilation Tools
         if: contains(matrix.target, 'linux-musl')
