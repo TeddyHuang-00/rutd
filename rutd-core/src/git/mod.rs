@@ -4,7 +4,9 @@ use std::fmt;
 
 use strum::{AsRefStr, EnumIter, EnumMessage, EnumString};
 
-#[derive(AsRefStr, Clone, Copy, Debug, EnumIter, EnumMessage, EnumString, Eq, PartialEq)]
+#[derive(
+    AsRefStr, Clone, Copy, Debug, EnumIter, EnumMessage, EnumString, Eq, PartialEq, Default,
+)]
 pub enum MergeStrategy {
     /// Do not automatically merge
     #[strum(
@@ -12,6 +14,7 @@ pub enum MergeStrategy {
         serialize = "none",
         message = "Do not automatically merge"
     )]
+    #[default]
     None,
     /// Prefer local version
     #[strum(serialize = "l", serialize = "local", message = "Prefer local version")]
@@ -23,12 +26,6 @@ pub enum MergeStrategy {
         message = "Prefer remote version"
     )]
     Remote,
-}
-
-impl Default for MergeStrategy {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl fmt::Display for MergeStrategy {
