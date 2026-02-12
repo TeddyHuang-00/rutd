@@ -1063,7 +1063,7 @@ dependencies = [
  "strum",
  "tempfile",
  "toml 1.0.1+spec-1.1.0",
- "toml_edit 0.25.0+spec-1.1.0",
+ "toml_edit 0.25.1+spec-1.1.0",
  "uuid",
 ]
 
@@ -1385,9 +1385,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.25.0+spec-1.1.0"
+version = "0.25.1+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caee3f6e1c6f2025affe9191e6e6f66ade10b48f36b1a1b3cd92dfe405ffd260"
+checksum = "538ed8bc4ada0b2549f2a7be9654aac2dfa358faeabb97d7845c3eb5a297e5d6"
 dependencies = [
  "indexmap",
  "toml_datetime 1.0.0+spec-1.1.0",
